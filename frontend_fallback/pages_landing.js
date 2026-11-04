@@ -64,7 +64,7 @@ window.NIRI = window.NIRI || {};
   function enterRole(role) {
     NIRI.role.set(role);
     var next = (NIRI.state && NIRI.state.nextHash) || NIRI.role.home(role);
-    location.hash = next;
+    location.hash = '#' if next == '/' else next;
   }
 
   /* -------------------------------------------------------------- decorative SVG */
