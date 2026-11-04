@@ -15,6 +15,8 @@ import json
 import logging
 import os
 import re
+import threading
+import time
 import urllib.error
 import urllib.request
 
@@ -24,6 +26,11 @@ GEMINI_BASE = "https://generativelanguage.googleapis.com"
 DEFAULT_BASE_URL = "https://api.groq.com/openai/v1"      # §8.2 table
 DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite"
 TIMEOUT_DEFAULT = 15
+
+# Circuit breaker: after N consecutive failures, skip the dead provider for a
+# short cooldown so a single outage does not add ~30s to every request.
+_CIRCUIT_THRESHOLD = 3
+_CIRCUIT_COOLDOWN = 60  # seconds
 
 # The enum from the §8.4 extraction prompt. Kept as data so the offline keyword
 # map and the online prompt can never drift apart.
@@ -223,7 +230,10 @@ _provider_cache = {}
 # A network provider that just failed reports itself as offline until one call
 # succeeds, so the UI badge tells the truth about the last answer it showed.
 # `error` keeps the last failure for operators; it never contains the key.
-_degraded = {"flag": False, "error": ""}
+# `failure_count` / `last_failure_ts` drive the circuit breaker (see `call`).
+_degraded = {"flag": False, "error": "", "failure_count": 0, "last_failure_ts": None}
+
+_lock = threading.Lock()
 
 
 def build_provider(env=None):
@@ -241,30 +251,58 @@ def get_provider():
     """Env-driven, cached per env signature so a changed environment is picked up."""
     e = _env()
     signature = (e["provider"], bool(e["key"]), e["model"], e["base"])
-    cached = _provider_cache.get("entry")
+    with _lock:
+        cached = _provider_cache.get("entry")
     if cached and cached[0] == signature:
         return cached[1]
     provider = build_provider(e)
-    _provider_cache["entry"] = (signature, provider)
+    with _lock:
+        _provider_cache["entry"] = (signature, provider)
     return provider
 
 
 def provider_mode():
     """"online" when a network provider is configured and healthy, else "offline"."""
-    if _degraded["flag"]:
+    with _lock:
+        degraded = _degraded["flag"]
+    if degraded:
         return "offline"
     return "offline" if isinstance(get_provider(), OfflineProvider) else "online"
 
 
 def provider_detail():
     """The last provider failure, for the health payload; empty while healthy."""
-    return _degraded["error"]
+    with _lock:
+        return _degraded["error"]
 
 
 def _recover():
     """A successful call clears the degraded badge (see provider_mode)."""
-    _degraded["flag"] = False
-    _degraded["error"] = ""
+    with _lock:
+        _degraded["flag"] = False
+        _degraded["error"] = ""
+        _degraded["failure_count"] = 0
+        _degraded["last_failure_ts"] = None
+
+
+def _circuit_open_locked():
+    """True while the provider is cooling down after N consecutive failures.
+
+    The caller must hold `_lock`.
+    """
+    now = time.time()
+    return (_degraded["failure_count"] >= _CIRCUIT_THRESHOLD
+            and _degraded["last_failure_ts"] is not None
+            and now - _degraded["last_failure_ts"] < _CIRCUIT_COOLDOWN)
+
+
+def _record_failure(exc):
+    """Record a failed provider call: bump the counter, stamp the time, mark degraded."""
+    with _lock:
+        _degraded["failure_count"] += 1
+        _degraded["last_failure_ts"] = time.time()
+        _degraded["flag"] = True
+        _degraded["error"] = ("%s: %s" % (type(exc).__name__, exc))[:300]
 
 
 def call(system, user, json_mode=False):
@@ -274,6 +312,11 @@ def call(system, user, json_mode=False):
     """
     provider = get_provider()
     if isinstance(provider, OfflineProvider):
+        return None, "offline"
+    with _lock:
+        tripped = _circuit_open_locked()
+    if tripped:
+        # Provider is cooling down: skip the retries and go straight to offline.
         return None, "offline"
     last_error = None
     for attempt in (1, 2):
@@ -287,8 +330,7 @@ def call(system, user, json_mode=False):
             last_error = exc
             log.warning("agent attempt %d failed (%s): %s",
                         attempt, provider.name, exc)
-    _degraded["flag"] = True
-    _degraded["error"] = ("%s: %s" % (type(last_error).__name__, last_error))[:300]
+    _record_failure(last_error)
     return None, "offline"
 
 
@@ -311,8 +353,9 @@ def call_vision(system, text, image_bytes, mime="image/jpeg"):
         except Exception as exc:                  # noqa: BLE001
             last_error = exc
             log.warning("agent vision attempt %d failed: %s", attempt, exc)
-    _degraded["flag"] = True
-    _degraded["error"] = ("%s: %s" % (type(last_error).__name__, last_error))[:300]
+    with _lock:
+        _degraded["flag"] = True
+        _degraded["error"] = ("%s: %s" % (type(last_error).__name__, last_error))[:300]
     log.info("vision fell back to metadata only (%s)", last_error)
     return None, "offline"
 
@@ -464,9 +507,18 @@ def extract_complaint(text):
         return base
     merged = _normalise_extraction(parsed)
     # Numbers the model invented are dropped: §8.4 forbids it, §2 rule 9 forbids trust.
+    # A model number is kept only when it appears as an exact standalone token in the
+    # user's text, otherwise the offline-extracted value stands. This avoids
+    # substring false positives such as "5" matching inside "15 days".
+    _text_numbers = set(re.findall(r"\b\d+(?:\.\d+)?\b", text or ""))
     for key in ("duration_days", "area_m2"):
-        if merged[key] is not None and str(merged[key]) not in (text or ""):
-            merged[key] = base[key]
+        if merged[key] is not None:
+            token = str(merged[key])
+            ok = token in _text_numbers
+            if not ok and isinstance(merged[key], float) and merged[key].is_integer():
+                ok = str(int(merged[key])) in _text_numbers
+            if not ok:
+                merged[key] = base[key]
     if merged["category"] == "other" and base["category"] != "other":
         merged["category"] = base["category"]
     if merged["location_hint"] is None:

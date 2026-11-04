@@ -67,6 +67,48 @@ window.NIRI = window.NIRI || {};
     return el('span', { class: 'ask-cite', text: cite.id || cite.doc || cite.kind });
   }
 
+  /* ------------------------------------------------------------ reasoning trace */
+  /* The steps are served, not invented here: each one is a record of work the
+     engine did. The panel is a disclosure so the answer stays the headline. */
+  function reasoningPanel(msg) {
+    if (!msg.reasoning || !msg.reasoning.length) return null;
+    var body = el('div', { class: 'ask-steps' });
+    msg.reasoning.forEach(function (step, i) {
+      body.appendChild(el('div', { class: 'ask-step', style: '--i:' + i }, [
+        el('span', { class: 'ask-step-n', text: String(step.n) }),
+        el('div', { class: 'ask-step-main' }, [
+          el('div', { class: 'ask-step-head' }, [
+            el('strong', { text: step.title }),
+            el('code', { class: 'ask-step-tool', text: step.tool })
+          ]),
+          el('p', { class: 'ask-step-detail', text: step.detail })
+        ])
+      ]));
+    });
+    var ev = msg.evidence || {};
+    return el('details', { class: 'ask-reason', open: msg.fresh ? '' : null }, [
+      el('summary', {}, [
+        el('span', { class: 'ask-reason-dot' }),
+        el('span', { text: 'Reasoning · ' + msg.reasoning.length + ' steps' }),
+        el('span', { class: 'ask-reason-meta', text: (msg.elapsed_ms || 0) + ' ms · '
+          + (ev.values || 0) + ' values · ' + (ev.docs || 0) + ' docs · '
+          + (ev.records || 0) + ' records' })
+      ]),
+      body
+    ]);
+  }
+
+  function followupChips(msg) {
+    if (!msg.fresh || !msg.followups || !msg.followups.length) return null;
+    var row = el('div', { class: 'ask-followups' });
+    row.appendChild(el('span', { class: 'ask-followups-label', text: 'ask next' }));
+    msg.followups.forEach(function (q) {
+      row.appendChild(el('button', { class: 'ask-chip ask-chip-sm', text: q,
+        on: { click: function () { var st = store(); st.draft = q; send(); } } }));
+    });
+    return row;
+  }
+
   /* -------------------------------------------------------------------- bubbles */
   function userRow(text) {
     return el('div', { class: 'ask-row ask-row-user' },
@@ -86,6 +128,8 @@ window.NIRI = window.NIRI || {};
       bubble.appendChild(el('p', { class: 'ask-line' + (/^-\s/.test(line)
                                              ? ' ask-line-item' : ''), text: line }));
     });
+    var panel = reasoningPanel(msg);
+    if (panel) bubble.appendChild(panel);
     var foot = el('div', { class: 'ask-foot' }, [
       el('span', { class: 'ask-provider ask-provider-' + (msg.provider || 'offline'),
                    text: msg.provider === 'online' ? 'online' : 'offline',
@@ -99,6 +143,8 @@ window.NIRI = window.NIRI || {};
       if (node) foot.appendChild(node);
     });
     bubble.appendChild(foot);
+    var next = followupChips(msg);
+    if (next) bubble.appendChild(next);
     return el('div', { class: 'ask-row ask-row-ai' },
               [el('div', { class: 'ask-who', text: 'Nirikshan' }), bubble]);
   }
@@ -194,7 +240,14 @@ window.NIRI = window.NIRI || {};
     st.waiting = true;
     paint();
 
-    var body = { question: question };
+    /* The last few turns travel with the question so a follow-up can inherit
+       its scope ("and Ward 4?"); the server re-reads every number regardless. */
+    var history = st.messages.filter(function (m) {
+      return m.text && !m.pending;
+    }).slice(-6).map(function (m) {
+      return { role: m.role === 'ai' ? 'assistant' : 'user', text: m.text };
+    });
+    var body = { question: question, history: history };
     if (st.caseId) body.case_id = st.caseId;
     api.post('/api/ask', body).then(function (out) {
       pending.pending = false;
@@ -202,6 +255,12 @@ window.NIRI = window.NIRI || {};
                                        : 'the server sent no answer for that';
       pending.provider = (out && out.provider) || 'offline';
       pending.citations = (out && out.citations) || [];
+      pending.reasoning = (out && out.reasoning) || [];
+      pending.evidence = (out && out.evidence) || {};
+      pending.followups = (out && out.followups) || [];
+      pending.elapsed_ms = out && out.elapsed_ms;
+      pending.intent = out && out.intent;
+      pending.fresh = true;
     }, function (err) {
       /* A failed turn leaves the transcript intact: drop the empty assistant
          bubble, put the question back in the composer and show the server's words. */

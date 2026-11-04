@@ -349,3 +349,48 @@ body[data-page="ask"] #ask-fab { display: none; }
   .ask-hero { max-width: 100%; }
   .ask-fab { right: 16px; bottom: 16px; }
 }
+
+/* ---------------------------------------------------------- reasoning trace */
+.ask-reason { margin: 12px 0 0; border-top: 1px dashed var(--line); padding-top: 10px; }
+.ask-reason summary {
+  display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none;
+  font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--muted); font-weight: 600;
+}
+.ask-reason summary::-webkit-details-marker { display: none; }
+.ask-reason summary::after { content: "+"; margin-left: auto; color: var(--muted); }
+.ask-reason[open] summary::after { content: "\2212"; }
+.ask-reason-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--forest);
+  box-shadow: 0 0 0 3px var(--forest-tint);
+}
+.ask-reason-meta { margin-left: 4px; font-size: 10.5px; color: var(--muted);
+  text-transform: none; letter-spacing: 0; font-family: var(--mono); }
+.ask-steps { margin: 12px 0 4px; position: relative; }
+.ask-step { display: flex; gap: 10px; padding: 0 0 12px 0; position: relative;
+  animation: askStep .32s ease both; animation-delay: calc(var(--i) * 45ms); }
+@keyframes askStep { from { opacity: 0; transform: translateY(4px); }
+                     to { opacity: 1; transform: none; } }
+.ask-step:not(:last-child)::before {
+  content: ""; position: absolute; left: 10px; top: 22px; bottom: 0;
+  width: 1px; background: var(--line);
+}
+.ask-step-n {
+  flex: none; width: 21px; height: 21px; border-radius: 50%; display: grid;
+  place-items: center; font-size: 10.5px; font-weight: 700; color: var(--forest);
+  background: var(--forest-tint); border: 1px solid var(--forest-tint-2); z-index: 1;
+}
+.ask-step-main { min-width: 0; }
+.ask-step-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.ask-step-head strong { font-size: 12.5px; color: var(--ink); }
+.ask-step-tool { font-family: var(--mono); font-size: 10.5px; color: var(--water);
+  background: var(--water-tint); padding: 1px 6px; border-radius: 999px; }
+.ask-step-detail { margin: 3px 0 0; font-size: 12px; line-height: 1.45; color: var(--ink-2); }
+.ask-followups { display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.ask-followups-label { font-size: 10.5px; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--muted); font-weight: 600; }
+.ask-chip-sm { font-size: 11.5px; padding: 4px 9px; }
+@media (prefers-reduced-motion: reduce) {
+  .ask-step { animation: none; }
+}

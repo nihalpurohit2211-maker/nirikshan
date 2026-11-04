@@ -95,6 +95,8 @@ as a deep link.
 ## What is in the repo
 
 ```
+docs/SYSTEM_MAP.md       six diagrams: truth map, request path, AI loop, case state machine,
+                        routes, and the interfaces added by the reasoning pass
 PLAN.md                  the build spec this repo implements, incl. the §6.7 numbers contract
 PROGRESS.md              session log: every gate, its command, and its real output
 TRANSFER.md              handoff — status, run commands, file tree, what remains

@@ -282,6 +282,7 @@ def health():
         }
         payload = {"status": "ok", "demo_now": demo_now(conn), "counts": counts,
                    "ai": _agent().provider_mode(),
+                   "maps": "google" if _maps_key() else "schematic",
                    "disclaimer": DISCLAIMER, "data": DATA_LABEL}
         detail = _agent().provider_detail()
         if detail:
@@ -397,6 +398,78 @@ def network():
                 "pipes": _rows(conn, "SELECT * FROM pipes ORDER BY id"),
                 "demo_now": demo_now(conn), "disclaimer": DISCLAIMER,
                 "data": DATA_LABEL}
+    finally:
+        conn.close()
+
+
+_MAPS_KEY_NAMES = ("GOOGLE_MAPS_API_KEY", "GMAPS_API_KEY", "MAPS_API_KEY")
+
+
+def _maps_key():
+    for name in _MAPS_KEY_NAMES:
+        value = (os.environ.get(name) or "").strip()
+        if value:
+            return value
+    return ""
+
+
+@app.get("/api/map-config")
+def map_config():
+    """Which basemap the browser should draw, and the public Maps key when set.
+
+    The key is a Maps JavaScript key by design (it is visible in any page that
+    uses Maps); restrict it by HTTP referrer in the Google console. No other
+    credential is ever exposed here.
+    """
+    key = _maps_key()
+    return {"provider": "google" if key else "schematic", "key": key or None,
+            "libraries": ["visualization"],
+            "note": "public browser key; restrict it by HTTP referrer",
+            "data": DATA_LABEL}
+
+
+@app.get("/api/wards")
+def wards():
+    """Ward zones as real lon/lat polygons, derived from the served centres.
+
+    Geometry comes from `backend/wards.py` (Voronoi cells clipped to the city
+    bounds). The counts attached to a cell are read from the same tables the
+    rest of the API serves, so a zone label can never disagree with the page.
+    """
+    from backend import wards as wards_mod
+    from backend import wqi as wqi_mod
+
+    conn = db()
+    try:
+        nodes = _rows(conn, "SELECT id, name, type, lat, lon, parent_id FROM nodes")
+        zones = [n for n in nodes if n["type"] == "zone" and n["lat"] and n["lon"]]
+        sites = [{"id": z["id"], "name": z["name"], "lon": z["lon"], "lat": z["lat"]}
+                 for z in zones]
+        bounds = wards_mod.bounds_of([[n["lon"], n["lat"]] for n in nodes
+                                      if n["lat"] and n["lon"]])
+        cells = wards_mod.cells(sites, bounds)
+        latest = rules_mod.bulk_latest(conn)
+        coliform = rules_mod.bulk_coliform(conn)
+        complaints = _rows(conn, "SELECT id, node_id, status FROM complaints")
+        cases = _rows(conn, "SELECT id, node_id, status FROM cases"
+                            " WHERE status != 'Resolved'")
+        for cell in cells:
+            poly = cell["polygon"]
+            inside = {n["id"] for n in nodes
+                      if n["lat"] and n["lon"]
+                      and wards_mod.inside((n["lon"], n["lat"]), poly)}
+            cell["node_count"] = len(inside)
+            cell["complaints"] = len([c for c in complaints if c["node_id"] in inside])
+            cell["open_cases"] = len([c for c in cases if c["node_id"] in inside])
+            values = latest.get(cell["id"])
+            if values:
+                idx = wqi_mod.compute(values, coliform.get(cell["id"]), LIMITS)
+                cell["wqi"] = {"score": idx["score"], "band": idx["band"],
+                               "colour": idx["colour"]}
+            else:
+                cell["wqi"] = None
+        return {"wards": cells, "bounds": bounds, "demo_now": demo_now(conn),
+                "disclaimer": DISCLAIMER, "data": DATA_LABEL}
     finally:
         conn.close()
 
@@ -980,12 +1053,13 @@ def daily_report():
 class AskIn(BaseModel):
     question: str
     case_id: str | None = None
+    history: list[dict] | None = None
 
 
 @app.post("/api/ask")
 def ask_endpoint(body: AskIn):
     from backend.ask import answer
-    return answer(body.question, body.case_id)
+    return answer(body.question, body.case_id, body.history)
 
 
 # ---------------------------------------------------------------------------

@@ -63,6 +63,54 @@ window.NIRI = window.NIRI || {};
     base.setAttribute('transform', 'scale(1 ' + (H / 720).toFixed(5) + ')');
     pan.appendChild(base);
 
+    /* 1. quality field. Inverse-distance interpolation of the SERVED score, and
+       of the SERVED colour: each cell is the weighted blend of the colours the
+       server attached to its samples. No band is re-derived here — the field
+       only smooths numbers that already exist, and the legend says so. */
+    var heatLayer = s('g', { class: 'heat-layer' });
+    (function buildHeat() {
+      var samples = nodes.filter(function (n) { return n.wqi && n.wqi.colour && n.lon; });
+      if (samples.length < 3) return;
+      var COLS = 34, ROWS = Math.max(12, Math.round(COLS * (H / W) * 1.25));
+      var cw = W / COLS, ch = H / ROWS;
+      function rgb(hex) {
+        var h = String(hex || '').replace('#', '');
+        if (h.length !== 6) return null;
+        return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16),
+                parseInt(h.slice(4, 6), 16)];
+      }
+      var parsed = samples.map(function (n) {
+        return { lon: n.lon, lat: n.lat, rgb: rgb(n.wqi.colour) };
+      }).filter(function (x) { return x.rgb; });
+      if (parsed.length < 3) return;
+      for (var gy = 0; gy < ROWS; gy++) {
+        for (var gx = 0; gx < COLS; gx++) {
+          var px = (gx + 0.5) * cw, py = (gy + 0.5) * ch;
+          var lon = bounds.minLon + (px - W * pad) / sx;
+          var lat = bounds.maxLat - (py - H * pad) / sy;
+          var wsum = 0, r = 0, g = 0, b = 0;
+          for (var i = 0; i < parsed.length; i++) {
+            var dx = (parsed[i].lon - lon) * 1000;
+            var dy = (parsed[i].lat - lat) * 1000;
+            var w = 1 / Math.pow(dx * dx + dy * dy + 4, 1.18);
+            wsum += w;
+            r += w * parsed[i].rgb[0];
+            g += w * parsed[i].rgb[1];
+            b += w * parsed[i].rgb[2];
+          }
+          if (!wsum) continue;
+          var cell = s('rect', { class: 'heat-cell', x: (gx * cw).toFixed(1),
+                                 y: (gy * ch).toFixed(1),
+                                 width: (cw + 0.8).toFixed(1), height: (ch + 0.8).toFixed(1),
+                                 fill: 'rgb(' + Math.round(r / wsum) + ','
+                                       + Math.round(g / wsum) + ','
+                                       + Math.round(b / wsum) + ')' });
+          heatLayer.appendChild(cell);
+        }
+      }
+    }());
+    pan.appendChild(heatLayer);
+
     /* 2. pipes — stroke width ∝ log(diameter) */
     var pipeLayer = s('g', {});
     var pipeNodes = {};
@@ -104,6 +152,16 @@ window.NIRI = window.NIRI || {};
                               fill: n.wqi ? (n.wqi.colour || BAND_FILL[n.wqi.band]) : NO_WQI });
       }
       shape.dataset.node = n.id;
+      if (n.wqi && n.wqi.band === 'Unsafe' && !cfg.preview) {
+        var ring = s('circle', { class: 'breach-ring', cx: xy[0], cy: xy[1], r: 6,
+                                 fill: 'none', stroke: n.wqi.colour || '#EA4335',
+                                 'stroke-width': 1.2 },
+                     s('animate', { attributeName: 'r', values: '6;16;6', dur: '3s',
+                                    repeatCount: 'indefinite' }),
+                     s('animate', { attributeName: 'opacity', values: '.55;0;.55',
+                                    dur: '3s', repeatCount: 'indefinite' }));
+        nodeLayer.appendChild(ring);
+      }
       var bits = [n.id, n.name, n.type];
       if (n.wqi) bits.push('WQI ' + n.wqi.score + ' ' + n.wqi.band);
       if (n.latest && n.latest.turbidity_ntu !== undefined) {
@@ -138,6 +196,56 @@ window.NIRI = window.NIRI || {};
     });
     pan.appendChild(nodeLayer);
     pan.appendChild(traceLayer);
+
+    /* hover card: the same served fields the node page shows, without leaving the map */
+    var tip = el('div', { class: 'map-tip', hidden: true });
+    function tipFor(n) {
+      NIRI.clear(tip);
+      tip.appendChild(el('div', { class: 'map-tip-head' }, [
+        el('strong', { text: n.name }),
+        el('span', { class: 'map-tip-type', text: n.type.replace('_', ' ') })
+      ]));
+      if (n.wqi) {
+        tip.appendChild(el('div', { class: 'map-tip-row' }, [
+          el('span', { class: 'sw', style: 'background:' + (n.wqi.colour || '#9FB3A8') }),
+          el('b', { text: 'WQI ' + n.wqi.score }),
+          el('span', { class: 'muted', text: n.wqi.band + (n.wqi.override ? ' · ' + n.wqi.override : '') })
+        ]));
+      } else if (n.latest) {
+        tip.appendChild(el('div', { class: 'map-tip-row muted', text: 'Air station' }));
+      } else {
+        tip.appendChild(el('div', { class: 'map-tip-row muted', text: 'no sensor at this node' }));
+      }
+      if (n.latest && n.latest.turbidity_ntu !== undefined) {
+        tip.appendChild(el('div', { class: 'map-tip-row mono' ,
+          text: 'turbidity ' + n.latest.turbidity_ntu + ' NTU' }));
+        tip.appendChild(el('div', { class: 'map-tip-row mono',
+          text: 'chlorine ' + n.latest.residual_chlorine_mgl + ' mg/L' }));
+      }
+      tip.appendChild(el('div', { class: 'map-tip-foot', text: 'click for the full node page' }));
+    }
+    function placeTip(ev) {
+      var box = host.getBoundingClientRect();
+      var x = ev.clientX - box.left + 14, y = ev.clientY - box.top + 14;
+      if (x + 210 > box.width) x = ev.clientX - box.left - 206;
+      tip.style.left = Math.max(6, x) + 'px';
+      tip.style.top = Math.max(6, y) + 'px';
+    }
+    if (!cfg.preview) {
+      nodeLayer.addEventListener('pointerover', function (ev) {
+        var id = ev.target && ev.target.dataset && ev.target.dataset.node;
+        if (!id || !byId[id]) return;
+        tipFor(byId[id]);
+        tip.hidden = false;
+      });
+      nodeLayer.addEventListener('pointermove', function (ev) {
+        if (!tip.hidden) placeTip(ev);
+      });
+      nodeLayer.addEventListener('pointerout', function (ev) {
+        var to = ev.relatedTarget;
+        if (!to || !to.dataset || !to.dataset.node) tip.hidden = true;
+      });
+    }
     pan.appendChild(labelLayer);
 
     function select(id) {
@@ -265,12 +373,16 @@ window.NIRI = window.NIRI || {};
     }
 
     var host = el('div', { class: 'map-wrap' }, [surface]);
+    if (!cfg.preview) host.appendChild(tip);
 
     if (!cfg.preview) {
       var controls = el('div', { class: 'map-controls' }, [
         el('div', { class: 'row' }, [
           el('button', { class: 'chip', text: '+', title: 'Zoom in', on: { click: function () { zoom(1.3); } } }),
           el('button', { class: 'chip', text: '−', title: 'Zoom out', on: { click: function () { zoom(1 / 1.3); } } }),
+          el('button', { class: 'chip ghost', text: 'field', title: 'show or hide the interpolated quality field',
+            on: { click: function (ev) { heatLayer.classList.toggle('off');
+              ev.target.classList.toggle('on'); } } }),
           el('button', { class: 'chip ghost', text: 'reset', on: { click: function () {
             view.scale = 1; view.x = 0; view.y = 0;
             pan.removeAttribute('transform');
@@ -316,11 +428,52 @@ window.NIRI = window.NIRI || {};
           el('div', { class: 'k' }, [el('span', { class: 'sw',
               style: 'background:' + LAND_FILL + ';border-radius:2px' }), 'land site']),
           el('p', { class: 'muted', style: 'margin:8px 0 0;font-size:11.5px' },
-            'Pipe thickness ∝ log(diameter). On a trace, a higher decay k means a worse section.')
+            'Pipe thickness ∝ log(diameter). The quality field is interpolated from the'
+            + ' served WQI colours, not re-banded here. On a trace, a higher decay k'
+            + ' means a worse section.')
         ])
       ]);
+      /* map chrome: scale, orientation, live coordinates, band mix */
+      var KM_PER_UNIT = ((bounds.maxLon - bounds.minLon) * 111.32
+                         * Math.cos(19 * Math.PI / 180)) / W;
+      var scaleKm = KM_PER_UNIT * W > 20 ? 10 : 5;
+      var coords = el('div', { class: 'map-coords mono', text: 'lon — · lat —' });
+      surface.addEventListener('pointermove', function (ev) {
+        var box = surface.getBoundingClientRect();
+        var x = (ev.clientX - box.left) * (W / box.width);
+        var y = (ev.clientY - box.top) * (H / box.height);
+        var lon = bounds.minLon + (x - W * pad) / sx;
+        var lat = bounds.maxLat - (y - H * pad) / sy;
+        coords.textContent = 'lon ' + lon.toFixed(4) + ' · lat ' + lat.toFixed(4);
+      });
+      var bands = {};
+      nodes.forEach(function (n) { if (n.wqi) bands[n.wqi.band] = (bands[n.wqi.band] || 0) + 1; });
+      var mix = el('div', { class: 'map-mix' }, ['Good', 'Acceptable', 'Poor', 'Unsafe']
+        .map(function (band) {
+          var row = el('div', { class: 'map-mix-row' }, [
+            el('span', { class: 'sw', style: 'background:' + BAND_FILL[band] }),
+            el('span', { class: 'map-mix-label', text: band }),
+            el('b', { text: String(bands[band] || 0) })
+          ]);
+          return row;
+        }));
       host.appendChild(controls);
       host.appendChild(legend);
+      host.appendChild(el('div', { class: 'map-chrome' }, [
+        el('div', { class: 'map-compass', title: 'north is up' }, [
+          el('span', { class: 'map-compass-n', text: 'N' }),
+          el('span', { class: 'map-compass-arrow', text: '↑' })
+        ]),
+        el('div', { class: 'map-scale' }, [
+          el('div', { class: 'map-scale-bar',
+                      style: 'width:' + Math.round((scaleKm / KM_PER_UNIT) / W * 100) + '%' }),
+          el('span', { class: 'mono', text: scaleKm + ' km' })
+        ]),
+        coords
+      ]));
+      host.appendChild(el('div', { class: 'map-bands' }, [
+        el('span', { class: 'map-bands-label', text: 'served bands' }), mix
+      ]));
     }
 
     applyLayers();

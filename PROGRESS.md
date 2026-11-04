@@ -560,3 +560,37 @@ Two more causes kept the hosted Ask page on the offline answer:
 `/api/health` also carries an `ai_detail` string after a provider failure, so the last
 error is visible without opening the Render log (the key is never included). Verified
 locally: `PY -m unittest discover -s backend/tests` -> **97 tests, OK** .
+
+---
+
+## POST-BUILD — reasoning, real zones, map second pass
+
+Entered after `773410e` with all earlier gates green (100 tests, 31 seed checks).
+
+**AI — three defects fixed.**
+1. `/api/ask` was a keyword router whose fallback answered a *different* question without
+   saying so. It now labels an unmatched question (intent `unspecified`) and says so in the
+   first line before showing what the records can answer.
+2. `_numbers_survive()` tested each digit token against a JSON blob of everything, so a
+   hallucinated claim passed whenever any number appeared anywhere. Replaced by typed
+   `bindings[]` + `numbers_bound()`: prose may only state a value bound to evidence, and
+   `94.40` matches `94.4` because both normalise to the same float.
+3. The provider could only re-word a template. `reasoning.py` now builds a six-step trace
+   from work the engine actually did (route → scope → served values → rule → citations →
+   answer), each step carrying its module and its own citations. A rewrite can add prose;
+   it cannot add a step, a number or a citation.
+   Plus `history[]` follow-ups: "and Ward 4?" inherits the previous intent and swaps the
+   scope, then every number is re-read from the engine.
+
+**Maps.** `/api/wards` serves Voronoi cells computed from the five ward centres in true
+lon/lat (`backend/wards.py`, pure stdlib, clipped to the city bounds) with served WQI and
+counts. `/api/map-config` reports `google` when `GOOGLE_MAPS_API_KEY` (or `GMAPS_API_KEY`
+/ `MAPS_API_KEY`) is set, else `schematic`. The map gained a quality field (inverse-distance
+blend of the *served* WQI colours — no band is re-derived in the browser), breach pulse
+rings on `Unsafe` nodes, a hover card with served readings, and chrome: scale bar, north
+arrow, live coordinates, served band strip.
+
+Verification at this point: `unittest` **100 tests, OK**; `verify_seed.py` **31 / 0**;
+`node --check` clean on every UI script; live `/api/wards` returns 5 cells (4–5 vertices
+each); the map page renders **1054** heat cells, 115 marks, 4 band rows, chrome and tooltip
+with no console errors.

@@ -47,6 +47,8 @@ def _use(stub):
     agent._provider_cache.clear()
     agent._degraded["flag"] = False
     agent._degraded["error"] = ""
+    agent._degraded["failure_count"] = 0
+    agent._degraded["last_failure_ts"] = None
     agent.get_provider = lambda: stub
     saved_mode = agent.provider_mode
 
@@ -62,6 +64,8 @@ def _use(stub):
         agent.provider_mode = saved_mode
         agent._degraded["flag"] = False
         agent._degraded["error"] = ""
+        agent._degraded["failure_count"] = 0
+        agent._degraded["last_failure_ts"] = None
     return restore
 
 
@@ -123,6 +127,47 @@ class CallContractTest(unittest.TestCase):
             out = agent.extract_complaint("the factory burns plastic")
             self.assertEqual(out["category"], "dust")
             self.assertEqual(out["location_hint"], "Main Rd")
+        finally:
+            restore()
+
+    def test_model_duration_must_be_a_standalone_text_token(self):
+        # "5" is not a token of "since 15 days" -> the offline value (15) wins.
+        stub = _Stub(reply='{"category": "muddy/turbid water", "location_hint": null,'
+                         ' "severity_hint": "low", "duration_days": 5, "area_m2": null}')
+        restore = _use(stub)
+        try:
+            out = agent.extract_complaint("the tap water has been brown since 15 days")
+            self.assertEqual(out["duration_days"], 15)
+        finally:
+            restore()
+
+    def test_model_area_must_be_a_standalone_text_token(self):
+        # "30" is not a token of "about 300 sq m" -> the offline value (300.0) wins.
+        stub = _Stub(reply='{"category": "open waste dump", "location_hint": null,'
+                         ' "severity_hint": "low", "duration_days": null, "area_m2": 30}')
+        restore = _use(stub)
+        try:
+            out = agent.extract_complaint("garbage heap near the school since 12 days, "
+                                          "about 300 sq m")
+            self.assertEqual(out["area_m2"], 300.0)
+        finally:
+            restore()
+
+    def test_circuit_breaker_skips_dead_provider(self):
+        stub = _Stub(error=RuntimeError("boom"))
+        restore = _use(stub)
+        try:
+            # three consecutive failed calls open the circuit (2 attempts each)
+            for _ in range(3):
+                text, mode = agent.call("sys", "user")
+                self.assertIsNone(text)
+                self.assertEqual(mode, "offline")
+            self.assertEqual(len(stub.calls), 6)
+            # fourth call skips the provider entirely while the circuit is open
+            text, mode = agent.call("sys", "user")
+            self.assertIsNone(text)
+            self.assertEqual(mode, "offline")
+            self.assertEqual(len(stub.calls), 6, "provider not called while open")
         finally:
             restore()
 
