@@ -24,7 +24,8 @@ Checkpoint trail (each one committed with tests green at the time):
 | — | `894a3db` | `rehearse_demo.py` — the demo path as an executable check |
 | CP5b | `dab6caf` | the full nine-page offline UI, verified twice in a browser |
 | CP6 | `4b11ba2` | README, final PROGRESS.md, this file, regenerated spec |
-| CP6a | this commit | Gate 6c: the audit's two residual derived claims removed from the UI |
+| CP6a | `ff80a63` + `e61bafa` | Gate 6c: the audit's two residual derived claims removed from the UI |
+| CP6b | this commit | Gate 6d: the band→colour tables measured against the live payload and left as legend-only fallbacks |
 
 After CP5b the UI was audited against the served payloads rather than the rendered page, which
 found twelve defects the walkthroughs could not see (a pollutant-key mismatch that silently
@@ -39,7 +40,10 @@ unserved conclusions survived into the committed build — a hotspot card that c
 factor red and the rest green (the browser picking "which factor is the alarm", across factors on
 different units), and Reports domain cards that printed `worst severity X` (a browser-side ranking
 of served labels). Both are now presentation of served data only: one neutral bar colour, and
-`severities here: …` in payload order. Re-verified live; see `PROGRESS.md`, Gate 6c.
+`severities here: …` in payload order. Re-verified live; see `PROGRESS.md`, Gate 6c. Its third
+item — the local band→colour tables — was measured rather than argued: every served WQI row
+carries its own `colour` and the hexes match those tables exactly, so they survive only as the
+legend and a colourless-row fallback (`PROGRESS.md`, Gate 6d).
 
 **Exact last gate output** (fresh seed, server on 8000 under the blackhole proxy, no LLM key):
 

@@ -226,6 +226,17 @@ no CDN. Phase 6 runs after the UI and two full browser walkthroughs of the demo.
   regenerated the rehearsal-mutated state (2871 lines, `complaints: 21`, `Action Taken`,
   `overdue: false`), and after `seed.py` regenerated a file `git diff --quiet` calls identical to
   the committed one, so the docs are a function of seed + code and nothing else.
+- **Gate 6d (the audit's last open item — band→colour tables):** its list (B) also named the local
+  `BANDS` / `BAND_FILL` maps in `components.js` and `map.js`. Adjudicated against the live
+  payload, not dismissed: every one of the 17 WQI rows on `/api/network` carries `colour`
+  (`wqi` keys are `band, colour, override, score`), and the served hexes equal the local tables
+  hex for hex — Good `#34A853`, Acceptable `#A8D08D`, Poor `#F4B400`, Unsafe `#EA4335`. Fills and
+  badges therefore come from the payload; the tables survive only as (i) the legend, which has no
+  endpoint behind it, and (ii) a fallback if a row ever arrives colourless, and both files now say
+  that in a comment with the measured hexes. Re-verified in the browser after the edit: `#/map`
+  drew 98 nodes (1 Good / 10 Acceptable / 4 Poor / 2 Unsafe / 59 no-sensor / 10 air / 12 land) and
+  the seven legend rows matched their `getComputedStyle` backgrounds; no `NaN`/`undefined`/`[object`.
+  `node --check` clean on all six scripts.
 
 ---
 

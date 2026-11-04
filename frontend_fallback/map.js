@@ -19,6 +19,11 @@ window.NIRI = window.NIRI || {};
      that match the legend exactly. */
   var AIR_FILL = '#7E9AA8';
   var LAND_FILL = '#C08A2E';
+  /* Node fills read n.wqi.colour — every served WQI carries one. This table exists for the
+     legend, which has no endpoint behind it, and as a fallback if a row ever arrives without a
+     colour; it was checked against the live payload and matches it hex for hex
+     (Good #34A853, Acceptable #A8D08D, Poor #F4B400, Unsafe #EA4335), so the legend cannot
+     drift from the map. */
   var BAND_FILL = { Good: '#34A853', Acceptable: '#A8D08D', Poor: '#F4B400', Unsafe: '#EA4335' };
 
   function mulberry(seed) {

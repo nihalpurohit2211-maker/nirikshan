@@ -58,6 +58,9 @@ window.NIRI = window.NIRI || {};
   function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); return node; }
 
   /* ---------------------------------------------------------------- labels */
+  /* Band name -> colour, used only when a payload row carries no `colour` of its own; the
+     served WQI rows all do, and these four hexes were checked to match them exactly. Badge
+     and chip class names come from the served label, never from a threshold. */
   var BANDS = { Good: '#34A853', Acceptable: '#A8D08D', Poor: '#F4B400', Unsafe: '#EA4335' };
   /* The NAQI category names served by the backend (config/aqi.json) that mean "unhealthy".
      Matching a served label — no number is compared to a threshold in the browser. */
