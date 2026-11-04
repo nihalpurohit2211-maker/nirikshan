@@ -376,37 +376,46 @@ window.NIRI = window.NIRI || {};
     if (!cfg.preview) host.appendChild(tip);
 
     if (!cfg.preview) {
+      /* One compact toolbar. The layer switches live in a dropdown rather than on
+         the canvas: four open checkboxes covered a third of the map. */
+      function layerToggle(key, label) {
+        return el('label', { class: 'map-layer-row' }, [
+          el('input', { type: 'checkbox', checked: layers[key] ? true : null,
+                        on: { change: function (ev) {
+                          layers[key] = ev.target.checked;
+                          applyLayers();
+                        } } }),
+          el('span', { text: label })
+        ]);
+      }
       var controls = el('div', { class: 'map-controls' }, [
-        el('div', { class: 'row' }, [
-          el('button', { class: 'chip', text: '+', title: 'Zoom in', on: { click: function () { zoom(1.3); } } }),
-          el('button', { class: 'chip', text: '−', title: 'Zoom out', on: { click: function () { zoom(1 / 1.3); } } }),
-          el('button', { class: 'chip ghost', text: 'field', title: 'show or hide the interpolated quality field',
-            on: { click: function (ev) { heatLayer.classList.toggle('off');
-              ev.target.classList.toggle('on'); } } }),
-          el('button', { class: 'chip ghost', text: 'reset', on: { click: function () {
-            view.scale = 1; view.x = 0; view.y = 0;
-            pan.removeAttribute('transform');
-          } } })
+        el('div', { class: 'map-toolbar' }, [
+          el('button', { class: 'chip', text: '+', title: 'Zoom in',
+                         on: { click: function () { zoom(1.3); } } }),
+          el('button', { class: 'chip', text: '−', title: 'Zoom out',
+                         on: { click: function () { zoom(1 / 1.3); } } }),
+          el('button', { class: 'chip ghost', text: 'reset', title: 'Reset the view',
+                         on: { click: function () {
+                           view.scale = 1; view.x = 0; view.y = 0;
+                           pan.removeAttribute('transform');
+                         } } })
         ]),
-        el('label', { class: 'row', style: 'font-weight:500' }, [
-          el('input', { type: 'checkbox', checked: true, style: 'width:auto',
-                        on: { change: function (ev) { layers.pipes = ev.target.checked; applyLayers(); } } }),
-          'pipes'
-        ]),
-        el('label', { class: 'row', style: 'font-weight:500' }, [
-          el('input', { type: 'checkbox', checked: true, style: 'width:auto',
-                        on: { change: function (ev) { layers.air = ev.target.checked; applyLayers(); } } }),
-          'air stations'
-        ]),
-        el('label', { class: 'row', style: 'font-weight:500' }, [
-          el('input', { type: 'checkbox', checked: true, style: 'width:auto',
-                        on: { change: function (ev) { layers.land = ev.target.checked; applyLayers(); } } }),
-          'land sites'
-        ]),
-        el('label', { class: 'row', style: 'font-weight:500' }, [
-          el('input', { type: 'checkbox', checked: true, style: 'width:auto',
-                        on: { change: function (ev) { layers.labels = ev.target.checked; applyLayers(); } } }),
-          'labels'
+        el('details', { class: 'map-layers' }, [
+          el('summary', { class: 'chip', text: 'Layers' }),
+          el('div', { class: 'map-layers-body' }, [
+            el('p', { class: 'map-layers-title', text: 'show on the map' }),
+            layerToggle('pipes', 'pipes'),
+            layerToggle('air', 'air stations'),
+            layerToggle('land', 'land sites'),
+            layerToggle('labels', 'labels'),
+            el('label', { class: 'map-layer-row' }, [
+              el('input', { type: 'checkbox', checked: true,
+                            on: { change: function (ev) {
+                              heatLayer.classList.toggle('off', !ev.target.checked);
+                            } } }),
+              el('span', { text: 'quality field' })
+            ])
+          ])
         ])
       ]);
       /* Collapsed by default: an open two-hundred-pixel legend sat on top of Ward 5.

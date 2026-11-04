@@ -452,3 +452,26 @@
   .map-chrome { right: 14px; bottom: 118px; }
   .map-controls { max-height: none; }
 }
+
+/* layer switches in a dropdown — the canvas stays the subject */
+.map-wrap .map-controls { max-height: none; overflow: visible;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.map-toolbar { display: flex; gap: 6px; }
+.map-wrap .map-layers { position: relative; }
+.map-wrap .map-layers summary { list-style: none; cursor: pointer; }
+.map-wrap .map-layers summary::-webkit-details-marker { display: none; }
+.map-wrap .map-layers summary::after { content: " ▾"; font-size: 10px; opacity: .7; }
+.map-wrap .map-layers[open] summary::after { content: " ▴"; }
+.map-layers-body {
+  position: absolute; left: 0; top: calc(100% + 6px); z-index: 8; min-width: 176px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 6px; box-shadow: var(--shadow); display: flex; flex-direction: column;
+}
+.map-layers-title { margin: 4px 7px 6px; font-size: 10px; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.map-layer-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+  border-radius: 8px; font-size: 12px; font-weight: 500; color: var(--ink-2);
+  cursor: pointer; }
+.map-layer-row:hover, .map-layer-row:focus-within { background: var(--forest-tint);
+  color: var(--forest); }
+.map-layer-row input { width: auto; margin: 0; accent-color: var(--forest); }
