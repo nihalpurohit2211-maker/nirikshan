@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-label="Synthetic sample image: a dust plume from a construction plot">
+  <rect width="320" height="240" fill="#F2EFE6"/>
+  <rect y="180" width="320" height="60" fill="#C9C2B0"/>
+  <rect x="196" y="96" width="86" height="84" fill="#A9A191"/>
+  <rect x="210" y="110" width="20" height="20" fill="#E7E2D4"/>
+  <rect x="248" y="110" width="20" height="20" fill="#E7E2D4"/>
+  <path d="M40 180 q22 -70 70 -74 q40 -4 52 26 q26 -6 30 26 q22 8 8 30 z" fill="#D8CDB4" opacity="0.95"/>
+  <circle cx="88" cy="140" r="6" fill="#C4B795"/>
+  <circle cx="124" cy="126" r="8" fill="#C4B795"/>
+  <circle cx="152" cy="152" r="7" fill="#C4B795"/>
+  <text x="160" y="226" font-family="monospace" font-size="13" text-anchor="middle" fill="#1B2B22">SYNTHETIC SAMPLE IMAGE</text>
+</svg>
