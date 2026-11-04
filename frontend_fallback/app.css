@@ -425,7 +425,7 @@ form .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .evidence .kv:last-child { border-bottom: none; }
 .evidence .kv .k { color: var(--muted); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .05em; }
 .chips { display: flex; gap: 6px; flex-wrap: wrap; min-width: 0; }
-.station-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+.station-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(292px, 1fr)); gap: 16px; align-items: start; }
 .card.station { display: flex; flex-direction: column; gap: 8px; }
 .card.station h4 { margin: 0; }
 .card.station .gauge-host { align-self: center; }
@@ -707,3 +707,12 @@ button, .btn, .ghost { border-radius: 10px; }
   overflow: hidden; max-width: 54ch; line-height: 1.45;
 }
 .card-table tr:hover td .clamp { -webkit-line-clamp: 4; }
+
+/* station cards carry six pollutant bars at once; give the numbers their own width
+   so no value wraps onto a second line */
+.card.station .bars { gap: 5px; }
+.card.station .bars .b {
+  grid-template-columns: 52px minmax(0, 1fr) 94px;
+  gap: 8px; font-size: 11.5px;
+}
+.card.station .bars .b > span:last-child { text-align: right; white-space: nowrap; }

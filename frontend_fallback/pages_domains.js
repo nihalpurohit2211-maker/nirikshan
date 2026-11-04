@@ -23,18 +23,6 @@
     { key: 'co', qi: 'CO', label: 'CO', unit: 'mg/m³' }
   ];
 
-  function pollutantTable(latest) {
-    return NIRI.table([
-      { label: 'pollutant', get: function (p) { return p.label; } },
-      { label: 'reading', num: true, get: function (p) { return latest[p.key]; } },
-      { label: 'unit', get: function (p) { return p.unit; } },
-      { label: 'sub-index', num: true,
-        /* a served 0 (CO at these concentrations) is a reading, not a missing row */
-        get: function (p) { var qi = latest.__sub && latest.__sub[p.qi];
-                            return qi === undefined || qi === null ? null : qi; } }
-    ], POLLUTANTS);
-  }
-
   function stationCard(station, categories, onHistory, isWorst) {
     var aqi = station.aqi || {};
     var sub = aqi.subindices || {};
@@ -48,7 +36,7 @@
       ]),
       NIRI.gauge(aqi, categories),
       el('p', { class: 'small muted' }, 'reading at ' + api.time(latest.timestamp)
-        + ' · NAQI from the served sub-indices'),
+        + ' · bars read sub-index @ concentration, the NAQI driver in the band colour'),
       NIRI.bars(POLLUTANTS.filter(function (p) { return sub[p.qi]; }).map(function (p) {
         return { label: p.label, value: sub[p.qi].subindex,
                  shown: sub[p.qi].subindex + ' @ ' + sub[p.qi].concentration,
@@ -56,7 +44,6 @@
                     re-run the max() the backend already did. */
                  color: p.qi === aqi.driving_pollutant ? (aqi.colour || '#EA4335') : '#9FB3A8' };
       })),
-      pollutantTable(latest),
       el('div', { class: 'actions', style: 'margin-top:10px' }, [
         el('button', { class: 'ghost', text: 'monitor history', on: { click: function () { onHistory(station); } } })
       ])
