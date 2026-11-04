@@ -365,6 +365,11 @@ window.NIRI = window.NIRI || {};
       Promise.all([api.network(), api.complaints(), api.cases()]).then(function (out) {
         var network = out[0], complaints = out[1].complaints, cases = out[2].cases;
         NIRI.clear(host);
+        host.appendChild(el('div', { class: 'flow-strip' }, [
+          flowStep('1', 'File the report', 'what the resident saw'),
+          flowStep('2', 'Read it back', 'category, severity, duration'),
+          flowStep('3', 'Cluster', 'five reports, one common cause')
+        ]));
         host.appendChild(intakeForm(network, complaints));
         host.appendChild(tracker(complaints, cases));
       }).catch(function (err) { NIRI.clear(host); host.appendChild(ui.errorBox(err)); });
@@ -379,6 +384,16 @@ window.NIRI = window.NIRI || {};
     { domain: 'land', label: 'Land', types: ['land_site'],
       hint: 'how long has it been there, and how big — both feed the proximity score' }
   ];
+
+  function flowStep(n, title, note) {
+    return el('div', { class: 'flow-step' }, [
+      el('span', { class: 'flow-n', 'aria-hidden': 'true', text: n }),
+      el('span', { class: 'flow-body' }, [
+        el('span', { class: 'flow-title', text: title }),
+        el('span', { class: 'flow-note', text: note })
+      ])
+    ]);
+  }
 
   function intakeForm(network, complaints) {
     var state = { domain: 'water' };
@@ -639,6 +654,14 @@ window.NIRI = window.NIRI || {};
       ], sorted));
   }
 
+  function statBit(value, label, note) {
+    return el('div', { class: 'stat-bit' }, [
+      el('span', { class: 'stat-value', text: String(value) }),
+      el('span', { class: 'stat-label', text: label }),
+      el('span', { class: 'stat-note', text: note })
+    ]);
+  }
+
   /* ------------------------------------------------------------------ cases list */
   pages.cases = {
     title: 'Cases',
@@ -673,6 +696,18 @@ window.NIRI = window.NIRI || {};
             } } }));
         });
         host.appendChild(filters);
+
+        var open = rows.filter(function (c) { return c.status !== 'Resolved'; }).length;
+        var overdue = rows.filter(function (c) { return c.overdue; }).length;
+        var urgent = rows.filter(function (c) {
+          return String(c.severity || '').toLowerCase() === 'emergency';
+        }).length;
+        host.appendChild(el('section', { class: 'stat-strip' }, [
+          statBit(rows.length, 'cases in view', 'grouped complaints'),
+          statBit(open, 'still open', 'not yet resolved'),
+          statBit(overdue, 'overdue', 'past the action window'),
+          statBit(urgent, 'emergency', 'severity at intake')
+        ]));
 
         host.appendChild(el('div', { style: 'margin-top:12px' }, NIRI.table([
           { label: 'severity', get: function (c) {
@@ -722,18 +757,22 @@ window.NIRI = window.NIRI || {};
     var row = detail.case;
     var ev = detail.evidence;
 
-    host.appendChild(el('div', { class: 'row', style: 'justify-content:space-between;margin-bottom:14px' }, [
-      el('div', {}, [
-        el('div', { class: 'row' }, [NIRI.severity(row), NIRI.statusBadge(row.status),
-                                     NIRI.scopeBadge(row.scope), NIRI.overdueFlag(row),
-                                     NIRI.badge(row.domain + ' case', 'plain')]),
-        el('h2', { style: 'margin-top:8px', text: row.title }),
-        el('p', { class: 'muted small' }, [
-          row.id + ' · at ', nodeLink(row.node_id, api.nodeName(row.node_id)),
-          ' · opened ' + api.time(row.created_at)
-          + ' · last action ' + api.since(row.last_action || row.updated_at)])
+    var accent = row.status === 'Resolved' ? 'var(--good)'
+      : row.overdue ? 'var(--danger)' : 'var(--amber)';
+    host.appendChild(el('section', { class: 'case-head', style: '--accent:' + accent }, [
+      el('div', { class: 'case-head-main' }, [
+        el('div', { class: 'case-tags' }, [NIRI.severity(row), NIRI.statusBadge(row.status),
+          NIRI.scopeBadge(row.scope), NIRI.overdueFlag(row),
+          NIRI.badge(row.domain + ' case', 'plain')]),
+        el('h1', { class: 'case-title', text: row.title }),
+        el('p', { class: 'case-meta' }, [
+          el('span', { class: 'mono', text: row.id }),
+          el('span', { text: ' · ' }), nodeLink(row.node_id, api.nodeName(row.node_id)),
+          el('span', { text: ' · opened ' + api.time(row.created_at) }),
+          el('span', { text: ' · last action ' + api.since(row.last_action || row.updated_at) })
+        ])
       ]),
-      el('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap' }, [
+      el('div', { class: 'case-actions' }, [
         link('#/ask?case=' + encodeURIComponent(row.id), '✦ Explain this case', 'chip'),
         row.domain === 'water'
           ? el('button', { class: 'primary', text: 'Trace Upstream', on: { click: function () {
