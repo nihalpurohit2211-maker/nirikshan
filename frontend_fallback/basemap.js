@@ -129,7 +129,27 @@ window.NIRI = window.NIRI || {};
     [[72.868, 19.052], [72.879, 19.050], [72.891, 19.047], [72.902, 19.043]],
     [[72.879, 19.033], [72.888, 19.041], [72.896, 19.050], [72.906, 19.056]],
     [[72.883, 19.058], [72.892, 19.061], [72.903, 19.065], [72.913, 19.067]],
-    [[72.892, 19.027], [72.895, 19.038], [72.899, 19.048], [72.902, 19.058]]
+    [[72.892, 19.027], [72.895, 19.038], [72.899, 19.048], [72.902, 19.058]],
+    [[72.868, 19.030], [72.880, 19.036], [72.892, 19.042], [72.904, 19.048]],
+    [[72.874, 19.060], [72.886, 19.058], [72.898, 19.056], [72.910, 19.052]],
+    [[72.882, 19.066], [72.892, 19.062], [72.902, 19.058], [72.912, 19.054]],
+    [[72.890, 19.024], [72.894, 19.036], [72.898, 19.048], [72.902, 19.060]],
+    [[72.900, 19.030], [72.904, 19.040], [72.908, 19.050], [72.912, 19.060]],
+    [[72.878, 19.070], [72.888, 19.068], [72.898, 19.066], [72.908, 19.064]],
+    [[72.866, 19.042], [72.878, 19.046], [72.890, 19.050], [72.902, 19.054]]
+  ];
+  /* Light built-up patches: enough texture to read as a city, never loud enough to
+     compete with the ward fills that sit on top. */
+  var BLOCKS = [
+    [[72.876, 19.064], [72.884, 19.064], [72.884, 19.069], [72.876, 19.069]],
+    [[72.884, 19.046], [72.897, 19.046], [72.897, 19.052], [72.884, 19.052]],
+    [[72.900, 19.074], [72.910, 19.074], [72.910, 19.080], [72.900, 19.080]],
+    [[72.858, 19.036], [72.867, 19.036], [72.867, 19.042], [72.858, 19.042]],
+    [[72.885, 19.026], [72.895, 19.026], [72.895, 19.032], [72.885, 19.032]],
+    [[72.906, 19.086], [72.914, 19.086], [72.914, 19.091], [72.906, 19.091]],
+    [[72.918, 19.092], [72.926, 19.092], [72.926, 19.098], [72.918, 19.098]],
+    [[72.852, 19.044], [72.860, 19.044], [72.860, 19.050], [72.852, 19.050]],
+    [[72.895, 19.036], [72.905, 19.036], [72.905, 19.042], [72.895, 19.042]]
   ];
 
   var CITY_LABELS = [
@@ -164,6 +184,13 @@ window.NIRI = window.NIRI || {};
     g.appendChild(shape(POWAI, 'bm-sea bm-lake', mode));
 
     PARKS.forEach(function (p) { g.appendChild(shape(p, 'bm-park', mode)); });
+    /* Built-up patches get softened corners so they read as neighbourhoods rather
+       than empty plots on the network map. */
+    var proj = PROJ[mode] || PROJ.city;
+    BLOCKS.forEach(function (p) {
+      var pts = p.map(function (ll) { return proj(ll[0], ll[1]); });
+      g.appendChild(s('path', { class: 'bm-block', d: roundedPath(pts, 11) }));
+    });
 
     g.appendChild(stroke(LBS, 'bm-road bm-road-minor', mode));
     g.appendChild(stroke(SION_MANKHURD, 'bm-road bm-road-minor', mode));
@@ -201,31 +228,89 @@ window.NIRI = window.NIRI || {};
     return baseGeometry(mode === 'local' ? 'local' : 'city');
   }
 
-  /* -------------------------------------------------------------- zone blobs */
-  function hashSeed(text) {
-    var h = 2166136261;
-    for (var i = 0; i < text.length; i++) {
-      h ^= text.charCodeAt(i);
-      h = Math.imul(h, 16777619);
+  /* ----------------------------------------------------------- ward mosaic */
+  /* The five served ward centres sit within a few kilometres of one another, so
+     literal blobs at those coordinates overlap into one stain. The city view uses
+     a schematic ward mosaic instead: a hand-placed Voronoi tessellation that gives
+     every ward a large, readable cell. The layout is presentation only — the fill,
+     label and numbers in each cell are still the served values. The network map
+     keeps plotting nodes at their real coordinates. */
+  var WARD_SEED = {
+    zone_1: [305, 520],
+    zone_2: [455, 500],
+    zone_3: [330, 365],
+    zone_4: [490, 305],
+    zone_5: [590, 425]
+  };
+  var MOSAIC = [
+    [258, 330], [296, 258], [392, 228], [506, 242], [600, 296], [648, 380],
+    [596, 462], [520, 524], [452, 562], [362, 554], [286, 506], [248, 420]
+  ];
+
+  /* Keep the half-plane closer to `own` than to `other` (Sutherland-Hodgman). */
+  function clipCell(poly, own, other) {
+    var a = 2 * (other[0] - own[0]);
+    var b = 2 * (other[1] - own[1]);
+    var c = own[0] * own[0] + own[1] * own[1] -
+            other[0] * other[0] - other[1] * other[1];
+    var out = [];
+    for (var i = 0; i < poly.length; i++) {
+      var p = poly[i], q = poly[(i + 1) % poly.length];
+      var fp = a * p[0] + b * p[1] + c;
+      var fq = a * q[0] + b * q[1] + c;
+      if (fp <= 0) out.push(p);
+      if ((fp <= 0) !== (fq <= 0)) {
+        var t = fp / (fp - fq);
+        out.push([p[0] + t * (q[0] - p[0]), p[1] + t * (q[1] - p[1])]);
+      }
     }
-    return h >>> 0;
+    return out;
   }
 
-  function blob(cx, cy, rx, ry, seed) {
-    var rand = seed;
-    function next() {
-      rand = (Math.imul(rand, 1664525) + 1013904223) >>> 0;
-      return rand / 4294967296;
+  function cellFor(seed, seeds) {
+    var poly = MOSAIC.slice();
+    seeds.forEach(function (other) {
+      if (other[0] === seed[0] && other[1] === seed[1]) return;
+      poly = clipCell(poly, seed, other);
+    });
+    return poly.length > 2 ? poly : [[seed[0] - 40, seed[1] - 30],
+                                    [seed[0] + 40, seed[1] - 30],
+                                    [seed[0] + 40, seed[1] + 30],
+                                    [seed[0] - 40, seed[1] + 30]];
+  }
+
+  /* Straight Voronoi edges, softened at the corners so the mosaic reads organic. */
+  function roundedPath(points, radius) {
+    var n = points.length;
+    if (n < 3) return '';
+    var out = '';
+    for (var i = 0; i < n; i++) {
+      var prev = points[(i - 1 + n) % n], cur = points[i], next = points[(i + 1) % n];
+      var v1x = prev[0] - cur[0], v1y = prev[1] - cur[1];
+      var v2x = next[0] - cur[0], v2y = next[1] - cur[1];
+      var l1 = Math.sqrt(v1x * v1x + v1y * v1y) || 1;
+      var l2 = Math.sqrt(v2x * v2x + v2y * v2y) || 1;
+      var r1 = Math.min(radius, l1 / 2), r2 = Math.min(radius, l2 / 2);
+      var ax = cur[0] + v1x / l1 * r1, ay = cur[1] + v1y / l1 * r1;
+      var bx = cur[0] + v2x / l2 * r2, by = cur[1] + v2y / l2 * r2;
+      out += (i ? 'L' : 'M') + ax.toFixed(1) + ' ' + ay.toFixed(1);
+      out += ' Q' + cur[0].toFixed(1) + ' ' + cur[1].toFixed(1) + ' ' +
+             bx.toFixed(1) + ' ' + by.toFixed(1);
     }
-    var pts = [];
-    for (var i = 0; i < 14; i++) {
-      var a = (i / 14) * Math.PI * 2;
-      var wobble = 0.82 + next() * 0.32;
-      pts.push([cx + Math.cos(a) * rx * wobble, cy + Math.sin(a) * ry * wobble]);
+    return out + ' Z';
+  }
+
+  function statText(zone, mode) {
+    if (mode === 'air') {
+      return zone.air ? 'AQI ' + zone.air.value +
+                        (zone.air.category ? ' · ' + zone.air.category : '')
+                       : 'no air station';
     }
-    return 'M' + pts.map(function (p, i) {
-      return (i ? 'L' : '') + p[0].toFixed(1) + ' ' + p[1].toFixed(1);
-    }).join(' ') + ' Z';
+    if (mode === 'complaints') {
+      var n = zone.complaints || 0;
+      return n + ' complaint' + (n === 1 ? '' : 's');
+    }
+    return zone.wqi ? 'WQI ' + zone.wqi.score + ' · ' + zone.wqi.band : 'no reading';
   }
 
   function create(opts) {
@@ -240,7 +325,9 @@ window.NIRI = window.NIRI || {};
                          'aria-label': 'schematic Mumbai base map with ward overlays' });
     svg.appendChild(baseGeometry('city'));
     var zoneLayer = s('g', { class: 'bm-zones' });
+    var labelLayer = s('g', { class: 'bm-zone-labels', 'pointer-events': 'none' });
     svg.appendChild(zoneLayer);
+    svg.appendChild(labelLayer);
 
     var host = el('div', { class: 'basemap-host' }, [
       svg,
@@ -249,9 +336,9 @@ window.NIRI = window.NIRI || {};
     ]);
 
     function fillFor(zone) {
-      if (!zone.wqi) return { fill: '#9FB3A8', stroke: '#7c8f86', opacity: 0.14 };
+      if (!zone.wqi) return { fill: '#9FB3A8', stroke: '#7c8f86' };
       return { fill: zone.wqi.colour || NIRI.BANDS[zone.wqi.band] || '#9FB3A8',
-               stroke: zone.wqi.colour || '#6b8f71', opacity: 0.28 };
+               stroke: zone.wqi.colour || '#6b8f71' };
     }
 
     function applyMode() {
@@ -259,27 +346,32 @@ window.NIRI = window.NIRI || {};
       svg.setAttribute('data-mode', mode);
       Object.keys(zoneNodes).forEach(function (id) {
         var z = zoneNodes[id];
-        var blobEl = z.blob, airEl = z.air, countEl = z.count;
         var f = fillFor(z.zone);
+        var accent = f.stroke;
         if (mode === 'water' || mode === 'all') {
-          blobEl.setAttribute('fill', f.fill);
-          blobEl.setAttribute('fill-opacity', mode === 'all' ? 0.20 : 0.30);
-          blobEl.setAttribute('stroke', f.stroke);
-          blobEl.setAttribute('stroke-opacity', 0.85);
+          z.blob.setAttribute('fill', f.fill);
+          z.blob.setAttribute('fill-opacity', mode === 'all' ? 0.52 : 0.58);
+          z.blob.setAttribute('stroke', f.stroke);
+          z.blob.setAttribute('stroke-opacity', 0.95);
         } else if (mode === 'air') {
-          blobEl.setAttribute('fill', '#6b8f71');
-          blobEl.setAttribute('fill-opacity', 0.07);
-          blobEl.setAttribute('stroke', '#6b8f71');
-          blobEl.setAttribute('stroke-opacity', 0.22);
+          z.blob.setAttribute('fill', '#6b8f71');
+          z.blob.setAttribute('fill-opacity', 0.12);
+          z.blob.setAttribute('stroke', '#8aa393');
+          z.blob.setAttribute('stroke-opacity', 0.75);
+          accent = (z.zone.air && z.zone.air.colour) || '#6b8f71';
         } else {
           var n = z.zone.complaints || 0;
-          blobEl.setAttribute('fill', '#b45309');
-          blobEl.setAttribute('fill-opacity', 0.10 + 0.32 * (n / max));
-          blobEl.setAttribute('stroke', '#b45309');
-          blobEl.setAttribute('stroke-opacity', 0.55);
+          z.blob.setAttribute('fill', '#b45309');
+          z.blob.setAttribute('fill-opacity', 0.16 + 0.40 * (n / max));
+          z.blob.setAttribute('stroke', '#b45309');
+          z.blob.setAttribute('stroke-opacity', 0.8);
+          accent = '#b45309';
         }
-        if (airEl) airEl.style.display = (mode === 'air' || mode === 'all') ? '' : 'none';
-        if (countEl) countEl.style.display = (mode === 'complaints' || mode === 'all') ? '' : 'none';
+        z.accent.setAttribute('fill', accent);
+        z.stat.textContent = statText(z.zone, mode);
+        if (z.air) z.air.style.display = (mode === 'air' || mode === 'all') ? '' : 'none';
+        if (z.count) z.count.style.display = (mode === 'complaints' || mode === 'all')
+                                              ? '' : 'none';
       });
     }
 
@@ -287,68 +379,22 @@ window.NIRI = window.NIRI || {};
       zones = next || [];
       zoneNodes = {};
       NIRI.clear(zoneLayer);
+      NIRI.clear(labelLayer);
       maxComplaints = Math.max.apply(null, zones.map(function (z) { return z.complaints || 0; })
                                           .concat([1]));
-      zones.forEach(function (zone) {
-        var xy = project(zone.lon, zone.lat, 'city');
+      var seeds = zones.map(function (z) {
+        return WARD_SEED[z.id] || project(z.lon, z.lat, 'city');
+      });
+
+      zones.forEach(function (zone, index) {
+        var seed = seeds[index];
+        var d = roundedPath(cellFor(seed, seeds), 14);
         var g = s('g', { class: 'bm-zone-group', 'data-zone': zone.id, tabindex: '0',
                          role: 'button',
                          'aria-label': zone.name + ' — open its cases' });
-        var path = s('path', { class: 'bm-zone', d: blob(xy[0], xy[1], 58, 38,
-                                                        hashSeed(zone.id)) });
+        g.appendChild(s('path', { class: 'bm-zone-gap', d: d }));
+        var path = s('path', { class: 'bm-zone', d: d });
         g.appendChild(path);
-
-        /* Label plate: short ward number + the real locality. The five ward centres
-           are close together, so each label is nudged out on its own side with a
-           leader line; without this the plates stack on top of each other. */
-        var title = zone.short || zone.name;
-        var sub = zone.locality || '';
-        var w = Math.max(title.length * 7.4, sub.length * 5.9) + 20;
-        var h = sub ? 34 : 22;
-        var NUDGE = { zone_1: [-52, 44], zone_2: [52, 44], zone_3: [-48, -44],
-                      zone_4: [48, -44], zone_5: [40, 14] };
-        var nudge = NUDGE[zone.id] || [0, 0];
-        var tx = Math.max(w / 2 + 6, Math.min(VIEW.w - w / 2 - 6, xy[0] + nudge[0]));
-        var ty = Math.max(h / 2 + 6, Math.min(VIEW.h - h / 2 - 6, xy[1] + nudge[1]));
-        if (nudge[0] || nudge[1]) {
-          g.appendChild(s('line', { class: 'bm-zone-leader', x1: xy[0], y1: xy[1],
-                                    x2: tx, y2: ty }));
-        }
-        var plate = s('g', { class: 'bm-zone-tag',
-                             transform: 'translate(' + (tx - w / 2) + ' ' + (ty - h / 2) + ')' });
-        plate.appendChild(s('rect', { x: 0, y: 0, width: w, height: h, rx: 7 }));
-        plate.appendChild(s('text', { x: 10, y: 14, text: title }));
-        if (sub) plate.appendChild(s('text', { x: 10, y: 27, class: 'bm-zone-sub', text: sub }));
-        g.appendChild(plate);
-
-        var AIR_NUDGE = { zone_1: [-38, -28], zone_2: [38, -28], zone_3: [-38, 28],
-                          zone_4: [38, 28], zone_5: [0, -34] };
-        var air = null;
-        if (zone.air) {
-          var an = AIR_NUDGE[zone.id] || [38, -28];
-          var ax = xy[0] + an[0], ay = xy[1] + an[1];
-          air = s('g', { class: 'bm-air', transform: 'translate(' + ax + ' ' + ay + ')' });
-          air.appendChild(s('rect', { x: -7, y: -7, width: 14, height: 14, rx: 2,
-                                      transform: 'rotate(45)',
-                                      fill: zone.air.colour || '#7E9AA8' }));
-          air.appendChild(s('title', { text: 'air ' + zone.air.value + ' · ' +
-                                            (zone.air.category || '') }));
-          g.appendChild(air);
-        }
-
-        var COUNT_NUDGE = { zone_1: [-40, 30], zone_2: [40, 30], zone_3: [-40, 30],
-                            zone_4: [40, 30], zone_5: [0, 32] };
-        var count = null;
-        if (zone.complaints) {
-          var cn = COUNT_NUDGE[zone.id] || [-46, 27];
-          var cx = xy[0] + cn[0], cy = xy[1] + cn[1];
-          count = s('g', { class: 'bm-count', transform: 'translate(' + cx + ' ' + cy + ')' });
-          count.appendChild(s('circle', { r: 11 }));
-          count.appendChild(s('text', { x: 0, y: 4, 'text-anchor': 'middle',
-                                        text: String(zone.complaints) }));
-          count.appendChild(s('title', { text: zone.complaints + ' complaints on record' }));
-          g.appendChild(count);
-        }
 
         g.appendChild(s('title', {
           text: zone.name + (zone.locality ? ' · ' + zone.locality : '') +
@@ -374,8 +420,51 @@ window.NIRI = window.NIRI || {};
           }
         });
 
-        zoneNodes[zone.id] = { group: g, blob: path, air: air, count: count, zone: zone };
+        /* The plate and markers live above every cell, so a neighbouring gutter
+           can never clip another ward's label. */
+        var label = s('g', { class: 'bm-zone-label', 'data-zone': zone.id });
+        var plate = s('g', { class: 'bm-zone-tag',
+                             transform: 'translate(' + seed[0] + ' ' + seed[1] + ')' });
+        plate.appendChild(s('rect', { class: 'bm-plate', x: -56, y: -25, width: 112,
+                                      height: 50, rx: 9 }));
+        var accent = s('rect', { class: 'bm-plate-accent', x: -56, y: -25, width: 4,
+                                 height: 50, rx: 2 });
+        plate.appendChild(accent);
+        plate.appendChild(s('text', { class: 'bm-zone-kicker', x: -45, y: -10,
+                                      text: (zone.short || zone.name).toUpperCase() }));
+        plate.appendChild(s('text', { class: 'bm-zone-name', x: -45, y: 4,
+                                      text: zone.locality || zone.name }));
+        var stat = s('text', { class: 'bm-zone-stat', x: -45, y: 18 });
+        plate.appendChild(stat);
+        label.appendChild(plate);
+
+        var air = null;
+        if (zone.air) {
+          air = s('g', { class: 'bm-air',
+                         transform: 'translate(' + (seed[0] - 46) + ' ' + (seed[1] - 40) + ')' });
+          air.appendChild(s('rect', { x: -8, y: -8, width: 16, height: 16, rx: 2,
+                                      transform: 'rotate(45)',
+                                      fill: zone.air.colour || '#7E9AA8' }));
+          air.appendChild(s('title', { text: 'air ' + zone.air.value + ' · ' +
+                                            (zone.air.category || '') }));
+          label.appendChild(air);
+        }
+
+        var count = null;
+        if (zone.complaints) {
+          count = s('g', { class: 'bm-count',
+                           transform: 'translate(' + (seed[0] + 46) + ' ' + (seed[1] - 40) + ')' });
+          count.appendChild(s('circle', { r: 11 }));
+          count.appendChild(s('text', { x: 0, y: 4, 'text-anchor': 'middle',
+                                        text: String(zone.complaints) }));
+          count.appendChild(s('title', { text: zone.complaints + ' complaints on record' }));
+          label.appendChild(count);
+        }
+
+        zoneNodes[zone.id] = { group: g, label: label, blob: path, accent: accent,
+                               air: air, count: count, stat: stat, zone: zone };
         zoneLayer.appendChild(g);
+        labelLayer.appendChild(label);
       });
       applyMode();
     }
@@ -383,8 +472,11 @@ window.NIRI = window.NIRI || {};
     function setMode(next) { mode = next; applyMode(); }
     function highlight(zoneId) {
       Object.keys(zoneNodes).forEach(function (id) {
-        zoneNodes[id].group.classList.toggle('is-active', id === zoneId);
-        zoneNodes[id].group.classList.toggle('is-dim', !!zoneId && id !== zoneId);
+        var node = zoneNodes[id];
+        node.group.classList.toggle('is-active', id === zoneId);
+        node.group.classList.toggle('is-dim', !!zoneId && id !== zoneId);
+        node.label.classList.toggle('is-active', id === zoneId);
+        node.label.classList.toggle('is-dim', !!zoneId && id !== zoneId);
       });
     }
 

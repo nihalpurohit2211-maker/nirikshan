@@ -3,69 +3,86 @@
    around it. Everything is offline: no tiles, fonts, images or URLs. */
 
 /* ------------------------------------------------------------ base map ink */
-.bm-land { fill: #efecdf; }
-.bm-sea { fill: #dcebed; }
-.bm-lake { stroke: #a9c9cb; stroke-width: 1.1; }
-.bm-coast { stroke: #a9c9cb; stroke-width: 1.8; stroke-linecap: round; }
+.bm-land { fill: #f3efe3; }
+.bm-sea { fill: #d4e7ea; }
+.bm-lake { stroke: #9fc3c7; stroke-width: 1.1; }
+.bm-coast { stroke: #9fc3c7; stroke-width: 2; stroke-linecap: round; }
 .bm-river-bank { stroke: #eef4ee; stroke-width: 11; stroke-linecap: round; }
-.bm-river { stroke: #d4e7e8; stroke-width: 6; stroke-linecap: round; }
-.bm-park { fill: #e3e9d5; stroke: #d4ddc5; stroke-width: .8; }
-.bm-road { stroke: #d9d2bf; stroke-width: 2.1; stroke-linecap: round; fill: none; }
-.bm-road-major { stroke: #c9bea3; stroke-width: 3.1; }
-.bm-road-minor { stroke: #d9d2bf; stroke-width: 2.1; }
-.bm-street { stroke: #e3ddcd; stroke-width: 1.1; stroke-linecap: round; fill: none; }
+.bm-river { stroke: #cfe4e6; stroke-width: 6; stroke-linecap: round; }
+.bm-park { fill: #dfe7cf; stroke: #d0dabf; stroke-width: .8; }
+.bm-block { fill: #e9e2d0; opacity: .42; }
+.bm-road { stroke: #d5cdb8; stroke-width: 2.1; stroke-linecap: round; fill: none; }
+.bm-road-major { stroke: #c6b99c; stroke-width: 3.2; }
+.bm-road-minor { stroke: #d5cdb8; stroke-width: 2.1; }
+.bm-street { stroke: #e0d9c7; stroke-width: 1.1; stroke-linecap: round; fill: none; }
 .bm-rail {
-  stroke: #b9b19d; stroke-width: 1.6; stroke-dasharray: 5 4; stroke-linecap: round;
+  stroke: #b4ab95; stroke-width: 1.6; stroke-dasharray: 5 4; stroke-linecap: round;
   fill: none;
 }
 .bm-label {
   font: 10.5px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  fill: #8b8573; letter-spacing: .02em; paint-order: stroke;
-  stroke: rgba(239, 236, 223, .82); stroke-width: 2.4px; stroke-linejoin: round;
+  fill: #857e6c; letter-spacing: .02em; paint-order: stroke;
+  stroke: rgba(243, 239, 227, .86); stroke-width: 2.4px; stroke-linejoin: round;
 }
-.bm-label-strong { font-weight: 750; fill: #6b6555; font-size: 12px; }
-.bm-label-water { fill: #5d8e93; font-style: italic; letter-spacing: .06em; }
+.bm-label-strong { font-weight: 750; fill: #645d4c; font-size: 12px; }
+.bm-label-water { fill: #54878c; font-style: italic; letter-spacing: .06em; }
 .bm-label-road, .bm-label-rail {
-  fill: #9a917d; font-size: 8.6px; font-weight: 700; letter-spacing: .1em;
+  fill: #948b77; font-size: 8.6px; font-weight: 700; letter-spacing: .1em;
   text-transform: uppercase;
 }
 .bm-ghost {
   font: 800 30px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  fill: rgba(28, 25, 23, .055); letter-spacing: .22em;
+  fill: rgba(28, 25, 23, .05); letter-spacing: .22em;
 }
-.bm-ghost-small { font-size: 9.5px; fill: rgba(28, 25, 23, .14); letter-spacing: .16em; }
-.bm-north path { fill: none; stroke: #8b8573; stroke-width: 1.4; stroke-linecap: round; }
-.bm-north text { font: 700 9px/1 system-ui, sans-serif; fill: #8b8573; }
+.bm-ghost-small { font-size: 9.5px; fill: rgba(28, 25, 23, .13); letter-spacing: .16em; }
+.bm-north path { fill: none; stroke: #857e6c; stroke-width: 1.4; stroke-linecap: round; }
+.bm-north text { font: 700 9px/1 system-ui, sans-serif; fill: #857e6c; }
 
-/* zone overlay — colour is always the served WQI colour, never re-derived */
+/* zone overlay — colour is always the served WQI colour, never re-derived.
+   The five served centres are close together, so the city view draws a schematic
+   ward mosaic (basemap.js): large interlocking cells with paper gutters, each
+   carrying its own label plate and served numbers. */
+.bm-zone-gap {
+  fill: #f8f4e9; stroke: #f8f4e9; stroke-width: 9; stroke-linejoin: round;
+  filter: drop-shadow(0 7px 11px rgba(28, 25, 23, .14));
+}
 .bm-zone {
-  stroke-width: 1.6;
-  transition: fill-opacity 150ms ease, stroke-width 150ms ease;
-  filter: drop-shadow(0 2px 5px rgba(28, 25, 23, .06));
+  stroke-width: 1.5; stroke-linejoin: round;
+  transition: fill-opacity 160ms ease, stroke-width 160ms ease;
   cursor: pointer;
 }
 .bm-zone-group:focus { outline: none; }
 .bm-zone-group:focus-visible .bm-zone { stroke-width: 3; }
-.bm-zone-group:hover .bm-zone { fill-opacity: .42 !important; stroke-width: 2.4; }
-.bm-zone-group.is-active .bm-zone { stroke-width: 3.2; fill-opacity: .46 !important; }
-.bm-zone-group.is-dim { opacity: .5; }
-.bm-zone-leader {
-  stroke: #8b8573; stroke-width: 1; stroke-dasharray: 2 3; stroke-opacity: .55;
-  pointer-events: none;
+.bm-zone-group:hover .bm-zone { fill-opacity: .74 !important; stroke-width: 2.6; }
+.bm-zone-group.is-active .bm-zone {
+  fill-opacity: .78 !important; stroke-width: 3.2;
+  filter: saturate(1.12) brightness(1.02);
 }
-.bm-zone-tag rect {
-  fill: rgba(255, 253, 247, .93); stroke: rgba(28, 25, 23, .13); stroke-width: 1;
-  filter: drop-shadow(0 1px 2px rgba(28, 25, 23, .08));
+.bm-zone-group.is-dim { opacity: .4; }
+.bm-zone-label { transition: opacity 160ms ease; }
+.bm-zone-label.is-dim { opacity: .4; }
+.bm-zone-tag .bm-plate {
+  fill: rgba(255, 253, 247, .96); stroke: rgba(28, 25, 23, .1); stroke-width: 1;
+  filter: drop-shadow(0 2px 5px rgba(28, 25, 23, .16));
 }
-.bm-zone-tag text {
-  font: 700 11px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  fill: #1c1917; letter-spacing: .01em;
+.bm-zone-tag .bm-plate-accent { stroke: none; }
+.bm-zone-label.is-active .bm-plate { stroke: rgba(20, 83, 45, .55); stroke-width: 1.6; }
+.bm-zone-kicker {
+  font: 800 8px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  fill: #8b8573; letter-spacing: .15em;
 }
-.bm-zone-tag .bm-zone-sub { font-weight: 500; font-size: 9px; fill: #6b7280; }
-.bm-air rect { stroke: #fffdf7; stroke-width: 1.4; }
-.bm-count circle { fill: #b45309; stroke: #fffdf7; stroke-width: 1.4; }
+.bm-zone-name {
+  font: 750 10.5px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  fill: #1c1917; letter-spacing: .005em;
+}
+.bm-zone-stat {
+  font: 650 8.5px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  fill: #57534e; letter-spacing: .01em; font-variant-numeric: tabular-nums;
+}
+.bm-air rect { stroke: #fffdf7; stroke-width: 1.6; }
+.bm-count circle { fill: #b45309; stroke: #fffdf7; stroke-width: 1.6; }
 .bm-count text {
-  font: 700 10.5px/1 system-ui, sans-serif; fill: #fffdf7;
+  font: 750 10.5px/1 system-ui, sans-serif; fill: #fffdf7;
   font-variant-numeric: tabular-nums;
 }
 .map-caption {

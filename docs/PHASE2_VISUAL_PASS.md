@@ -99,6 +99,26 @@ Demo shortcuts:
 - `http://127.0.0.1:8000/#/?role=officer` — straight into the officer view.
 - `http://127.0.0.1:8000/#/map?t=CASE-2026-004&role=officer` — trace demo link.
 
+### 6. Ward mosaic (map follow-up)
+
+The five served ward centres sit within a few kilometres of each other, so literal blobs
+at those coordinates overlapped into one stain. The city map now draws a hand-authored
+Voronoi mosaic instead:
+
+- five large interlocking cells with paper gutters, rounded corners and a soft shadow;
+- a compact plate inside each cell: ward number, locality, and the served WQI (or AQI, or
+  complaint count) for the selected layer;
+- served-colour fills at a readable opacity, with hover, focus, selected and dimmed states;
+- no leader lines, no overlapping labels.
+
+The cell positions are **schematic presentation, not data**. The fill, labels and numbers
+still come from `/api/overview`, `/api/network`, `/api/air` and `/api/complaints`; the
+browser never re-derives a band. The network map keeps plotting nodes at their real
+coordinates, so the two views remain honest about what is geography and what is layout.
+
+The shared basemap also gained softened built-up blocks and more minor streets, which give
+both maps a city texture without adding a tile, image or external request.
+
 ## Contracts kept
 
 - **No verdicts in the browser.** WQI bands, AQI categories, severity, status, overdue,
@@ -119,7 +139,7 @@ frontend_fallback/app.css          design system + table/split-rail fixes
 frontend_fallback/components.js    real table wrapper (scroll container)
 frontend_fallback/landing.css      landing styles + shell collapse + role chip
 frontend_fallback/pages_landing.js NIRI.role + NIRI.pages.welcome
-frontend_fallback/basemap.js       shared schematic Mumbai basemap
+frontend_fallback/basemap.js       shared schematic Mumbai basemap + ward mosaic
 frontend_fallback/city.css         basemap ink, city page, network-map overrides
 frontend_fallback/pages_city.js    city overview (overrides pages.dashboard)
 frontend_fallback/ask.css          ask page, hero, FAB
