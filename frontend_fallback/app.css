@@ -741,3 +741,10 @@ button, .btn, .ghost { border-radius: 10px; }
 .prox-details > summary::before { content: "▸ "; color: var(--muted); }
 .prox-details[open] > summary::before { content: "▾ "; }
 .prox-details[open] > summary { margin-bottom: 6px; }
+
+/* the sidebar reads as four short lists, not one long menu */
+.nav-group {
+  margin: 15px 12px 5px; font-size: 9px; font-weight: 700;
+  letter-spacing: .16em; text-transform: uppercase; color: #a09886;
+}
+#nav > a:first-of-type { margin-top: 0; }

@@ -18,18 +18,24 @@
   var ROUTES = [
     { page: 'welcome', hash: '#/welcome', match: /^\/welcome$/, nav: 'Welcome', glyph: '✳',
       hidden: true },
-    { page: 'dashboard', hash: '#/', match: /^\/$/, nav: 'City overview', glyph: '▦' },
-    { page: 'map', hash: '#/map', match: /^\/map$/, nav: 'Network map', glyph: '⌗' },
+    { page: 'dashboard', hash: '#/', match: /^\/$/, nav: 'City overview', glyph: '▦', group: 'City' },
+    { page: 'map', hash: '#/map', match: /^\/map$/, nav: 'Network map', glyph: '⌗', group: 'City' },
     { page: 'complaints', hash: '#/complaints', match: /^\/complaints$/, nav: 'Complaints', glyph: '✎',
+      group: 'Work queue',
       count: function () { return api.complaints().then(function (d) { return d.count; }); } },
     { page: 'cases', hash: '#/cases', match: /^\/cases$/, nav: 'Cases', glyph: '⚑',
+      group: 'Work queue',
       count: function () { return api.cases().then(function (d) { return d.count; }); } },
     { page: 'air', hash: '#/air', match: /^\/air$/, nav: 'Air quality', glyph: '≈',
+      group: 'Domains',
       count: function () { return api.air().then(function (d) { return d.stations.length; }); } },
     { page: 'land', hash: '#/land', match: /^\/land$/, nav: 'Land reports', glyph: '▲',
+      group: 'Domains',
       count: function () { return api.land().then(function (d) { return d.count; }); } },
-    { page: 'reports', hash: '#/reports', match: /^\/reports$/, nav: 'Reports', glyph: '☰' },
-    { page: 'ask', hash: '#/ask', match: /^\/ask$/, nav: 'Ask Nirikshan', glyph: '✦' }
+    { page: 'reports', hash: '#/reports', match: /^\/reports$/, nav: 'Reports', glyph: '☰',
+      group: 'Analysis' },
+    { page: 'ask', hash: '#/ask', match: /^\/ask$/, nav: 'Ask Nirikshan', glyph: '✦',
+      group: 'Analysis' }
   ];
   /* detail screens are matched by prefix, then the rest of the path is the id */
   var DEEP = [{ prefix: '/cases/', page: 'case' }, { prefix: '/nodes/', page: 'node' }];
@@ -72,8 +78,13 @@
 
   function paintNav(activePage) {
     NIRI.clear(navHost);
+    var lastGroup = null;
     ROUTES.forEach(function (def) {
       if (def.hidden) return;
+      if (def.group && def.group !== lastGroup) {
+        lastGroup = def.group;
+        navHost.appendChild(el('p', { class: 'nav-group', text: def.group }));
+      }
       var counter = el('span', { class: 'count' });
       var a = el('a', { href: def.hash, class: def.page === activePage ? 'active' : null },
                  [def.glyph + ' ' + def.nav, counter]);
