@@ -221,6 +221,11 @@ no CDN. Phase 6 runs after the UI and two full browser walkthroughs of the demo.
   clean on all six scripts. The audit's other items were already fixed in Gate 6b; its
   "hotspot `.colour` read" and `detail.node.wqi` claims were checked against the current files and
   are not present (the code reads `h.band` through `bandBadge` and `detail.wqi`).
+  Gates re-run at CP6a: **31/0**, **Ran 81 tests, OK**, **17/17 beats**, **21/21 coverage,
+  2840 lines**. `make_frontend_spec.py` was also used as a reproducibility probe — it faithfully
+  regenerated the rehearsal-mutated state (2871 lines, `complaints: 21`, `Action Taken`,
+  `overdue: false`), and after `seed.py` regenerated a file `git diff --quiet` calls identical to
+  the committed one, so the docs are a function of seed + code and nothing else.
 
 ---
 

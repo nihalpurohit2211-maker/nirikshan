@@ -70,6 +70,15 @@ The database in the working tree is **pristine** (20 complaints, 8 cases, nothin
 approved by the walkthroughs) — restore it that way after any rehearsal, because the demo
 numbers in §13 of the spec are asserted against exactly that state.
 
+Those four commands were re-run at CP6a, which is the last code change, with the same results.
+`make_frontend_spec.py` was also used as a reproducibility check: after a rehearsal had mutated
+the database it regenerated a 2871-line spec containing the rehearsal's state (`complaints: 21`,
+`CASE-2026-003` at `Action Taken`, `overdue: false`) — which is the honest behaviour of a
+generator that reads a live server — and after `seed.py` restored the pristine database it
+regenerated a file byte-identical to the committed 2840-line one (`git diff --quiet` on
+`docs/FRONTEND_SPEC.md` and `docs/openapi.json`: clean). So the spec and OpenAPI in this repo are
+reproducible from a fresh clone, and the only inputs that move them are the seed and the code.
+
 ## 2. Run it
 
 Windows, Git Bash, repo root. `PY` is `./.venv/Scripts/python.exe` here; on Linux use
