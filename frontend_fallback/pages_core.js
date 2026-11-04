@@ -425,6 +425,16 @@ window.NIRI = window.NIRI || {};
     var fileInput = el('input', { type: 'file', accept: 'image/jpeg,image/png',
                                  style: 'display:none' });
     var result = el('div', { style: 'margin-top:14px' });
+    /* the read-back rail used to be an empty 380px column until the first file */
+    result.appendChild(el('div', { class: 'card ghost-card' }, [
+      el('h3', { text: 'What the assistant read' }),
+      el('p', { class: 'small muted' }, 'File a report and the category, severity hint, duration '
+        + 'and area read from the text appear in this column — editable before you accept them.'),
+      el('div', { class: 'ghost-rows' }, [
+        el('i', { style: 'width:64%' }), el('i', { style: 'width:88%' }),
+        el('i', { style: 'width:46%' }), el('i', { style: 'width:72%' })
+      ])
+    ]));
     var hint = el('p', { class: 'hint' });
 
     function fillNodeOptions() {
