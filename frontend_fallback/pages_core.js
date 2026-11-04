@@ -1191,14 +1191,24 @@ window.NIRI = window.NIRI || {};
       ]).then(function (out) {
         var detail = out[0], readings = out[1], forecast = out[2];
         NIRI.clear(host);
-        host.appendChild(el('div', { class: 'row', style: 'justify-content:space-between' }, [
-          el('div', {}, [el('h2', { text: detail.node.name }),
-            el('p', { class: 'muted small', text: detail.node.id + ' · '
-              + detail.node.type.replace(/_/g, ' ')
-              + (detail.node.zone_id ? ' · ward ' + detail.node.zone_id : '') })]),
-          el('button', { class: 'ghost', text: 'show on map', on: { click: function () {
-            location.hash = '#/map?n=' + encodeURIComponent(nodeId);
-          } } })
+        host.appendChild(el('section', { class: 'case-head node-head' }, [
+          el('div', { class: 'case-head-main' }, [
+            el('div', { class: 'case-tags' }, [
+              NIRI.badge(detail.node.type.replace(/_/g, ' '), 'plain'),
+              detail.node.zone_id ? NIRI.badge('ward ' + detail.node.zone_id, 'plain') : null
+            ]),
+            el('h1', { class: 'case-title', text: detail.node.name }),
+            el('p', { class: 'case-meta' }, [
+              el('span', { class: 'mono', text: detail.node.id }),
+              el('span', { text: ' · ' }),
+              el('span', { text: 'the fourteen days behind the number, plus what the ward reported' })
+            ])
+          ]),
+          el('div', { class: 'case-actions' }, [
+            el('button', { class: 'ghost', text: 'Show on map', on: { click: function () {
+              location.hash = '#/map?n=' + encodeURIComponent(nodeId);
+            } } })
+          ])
         ]));
 
         var series = readings && readings.readings ? readings : null;
