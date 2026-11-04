@@ -54,7 +54,7 @@ dust, open waste dump, soil erosion, other], "location_hint": string or null,
 "severity_hint": low|medium|high, "duration_days": number or null, "area_m2": number or null}.
 Never invent numbers the user did not give. Use null when unsure."""
 
-SYSTEM_EXPLAINATION = """You explain an automated water/air/land quality assessment to a municipal officer.
+SYSTEM_EXPLANATION = """You explain an automated water/air/land quality assessment to a municipal officer.
 You may ONLY paraphrase the provided standard rows and the provided evidence.
 Never state a limit, number, or verdict that is not in the provided text.
 End with: "This explanation supports human judgment and is not an official regulatory decision." """
@@ -529,7 +529,7 @@ def extract_complaint(text):
 def explain_case(case, standards_rows, evidence=None):
     """Paraphrase-only explanation. Offline uses the §8.5 template."""
     evidence = evidence or {}
-    online, _mode = call(SYSTEM_EXPLAINATION,
+    online, _mode = call(SYSTEM_EXPLANATION,
                          "Case:\n%s\n\nStandards rows:\n%s\n\nEvidence:\n%s\n\n"
                          "Write the explanation." % (
                              json.dumps({k: case.get(k) for k in

@@ -136,7 +136,16 @@ window.NIRI = window.NIRI || {};
     [[72.890, 19.024], [72.894, 19.036], [72.898, 19.048], [72.902, 19.060]],
     [[72.900, 19.030], [72.904, 19.040], [72.908, 19.050], [72.912, 19.060]],
     [[72.878, 19.070], [72.888, 19.068], [72.898, 19.066], [72.908, 19.064]],
-    [[72.866, 19.042], [72.878, 19.046], [72.890, 19.050], [72.902, 19.054]]
+    [[72.866, 19.042], [72.878, 19.046], [72.890, 19.050], [72.902, 19.054]],
+    /* more local streets for a finer grain */
+    [[72.862, 19.040], [72.874, 19.042], [72.886, 19.045], [72.898, 19.047]],
+    [[72.876, 19.054], [72.887, 19.052], [72.900, 19.051], [72.912, 19.050]],
+    [[72.861, 19.062], [72.872, 19.060], [72.884, 19.059], [72.896, 19.057], [72.908, 19.056]],
+    [[72.880, 19.034], [72.890, 19.036], [72.900, 19.038], [72.910, 19.039]],
+    [[72.866, 19.070], [72.876, 19.068], [72.888, 19.066], [72.900, 19.065]],
+    [[72.894, 19.030], [72.902, 19.032], [72.910, 19.033]],
+    [[72.856, 19.028], [72.868, 19.030], [72.880, 19.032], [72.892, 19.033]],
+    [[72.913, 19.076], [72.922, 19.074], [72.929, 19.072]]
   ];
   /* Light built-up patches: enough texture to read as a city, never loud enough to
      compete with the ward fills that sit on top. */
@@ -149,7 +158,15 @@ window.NIRI = window.NIRI || {};
     [[72.906, 19.086], [72.914, 19.086], [72.914, 19.091], [72.906, 19.091]],
     [[72.918, 19.092], [72.926, 19.092], [72.926, 19.098], [72.918, 19.098]],
     [[72.852, 19.044], [72.860, 19.044], [72.860, 19.050], [72.852, 19.050]],
-    [[72.895, 19.036], [72.905, 19.036], [72.905, 19.042], [72.895, 19.042]]
+    [[72.895, 19.036], [72.905, 19.036], [72.905, 19.042], [72.895, 19.042]],
+    /* more built-up patches, denser near the highway and rail corridor */
+    [[72.866, 19.028], [72.875, 19.028], [72.875, 19.033], [72.866, 19.033]],
+    [[72.892, 19.054], [72.903, 19.054], [72.903, 19.060], [72.892, 19.060]],
+    [[72.908, 19.034], [72.918, 19.034], [72.918, 19.039], [72.908, 19.039]],
+    [[72.860, 19.052], [72.870, 19.052], [72.870, 19.057], [72.860, 19.057]],
+    [[72.900, 19.082], [72.911, 19.082], [72.911, 19.087], [72.900, 19.087]],
+    [[72.878, 19.048], [72.889, 19.048], [72.889, 19.053], [72.878, 19.053]],
+    [[72.924, 19.012], [72.932, 19.012], [72.932, 19.017], [72.924, 19.017]]
   ];
 
   var CITY_LABELS = [
@@ -173,29 +190,92 @@ window.NIRI = window.NIRI || {};
     ['STUDY AREA', 72.872, 19.059, 'bm-ghost bm-ghost-small', 0, 0, null]
   ];
 
+  /* ---------------------------------------------------------------- compass */
+  /* A small professional compass rose (true north is up in this projection). */
+  function compassRose() {
+    var c = s('g', { class: 'bm-compass', transform: 'translate(' + (VIEW.w - 86) + ' 66)' });
+    c.appendChild(s('circle', { class: 'bm-compass-ring', r: 24, fill: '#fffdf7',
+                                stroke: '#5c5347', 'stroke-width': 1.2 }));
+    c.appendChild(s('circle', { class: 'bm-compass-dot', cx: 0, cy: 0, r: 2.2, fill: '#1c1917' }));
+    /* cardinal and intercardinal ticks */
+    ['N', 'E', 'S', 'W'].forEach(function (name, i) {
+      var a = i * Math.PI / 2;
+      c.appendChild(s('line', { x1: Math.sin(a) * 18, y1: -Math.cos(a) * 18,
+                              x2: Math.sin(a) * 22, y2: -Math.cos(a) * 22,
+                              stroke: '#5c5347', 'stroke-width': 1.4 }));
+      c.appendChild(s('text', { x: Math.sin(a) * 30, y: -Math.cos(a) * 30 + 3,
+                                'text-anchor': 'middle',
+                                'font-family': 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+                                'font-weight': '700', 'font-size': 9, fill: '#3d372d',
+                                'letter-spacing': '.05em', text: name }));
+    });
+    /* the north needle */
+    c.appendChild(s('path', { class: 'bm-compass-needle',
+                              d: 'M-5 -6 L0 -22 L5 -6 L0 -10 Z', fill: '#14532d' }));
+    return c;
+  }
+
+  /* --------------------------------------------------------------- scale bar */
+  /* Offline scale bar: kilometres per pixel come from the projected bounds, so
+     the bar stays truthful without any tiles or external data. */
+  function scaleBar(mode) {
+    var b = BOUNDS[mode] || BOUNDS.city;
+    var mPerPx = ((b.maxLon - b.minLon) * 111320 *
+                  Math.cos(((b.minLat + b.maxLat) / 2) * Math.PI / 180)) / VIEW.w;
+    var targetKm = 2;
+    var barPx = Math.round((targetKm * 1000) / mPerPx / 10) * 10; /* snap to 10px */
+    var seg = barPx / 4;
+    var g = s('g', { class: 'bm-scale', transform: 'translate(30 ' + (VIEW.h - 44) + ')' });
+    for (var i = 0; i < 4; i++) {
+      g.appendChild(s('rect', { x: i * seg, y: 0, width: seg - 0.6, height: 7,
+                              fill: i % 2 ? '#fffdf7' : '#1c1917',
+                              stroke: '#3d372d', 'stroke-width': 0.6 }));
+    }
+    [0, 1, 2, 3, 4].forEach(function (i) {
+      g.appendChild(s('line', { x1: i * seg, y1: 8, x2: i * seg, y2: 13,
+                              stroke: '#3d372d', 'stroke-width': 0.8 }));
+    });
+    g.appendChild(s('text', { x: 0, y: 26, 'text-anchor': 'start',
+                              'font-family': 'ui-monospace, "Cascadia Mono", "SF Mono", monospace',
+                              'font-size': 9, fill: '#3d372d', text: '0' }));
+    g.appendChild(s('text', { x: barPx / 2, y: 26, 'text-anchor': 'middle',
+                              'font-family': 'ui-monospace, "Cascadia Mono", "SF Mono", monospace',
+                              'font-size': 9, fill: '#3d372d', text: targetKm / 2 + ' km' }));
+    g.appendChild(s('text', { x: barPx, y: 26, 'text-anchor': 'end',
+                              'font-family': 'ui-monospace, "Cascadia Mono", "SF Mono", monospace',
+                              'font-size': 9, fill: '#3d372d', text: targetKm + ' km' }));
+    return g;
+  }
+
   function baseGeometry(mode) {
     var g = s('g', { class: 'bm-base' });
     g.appendChild(s('rect', { class: 'bm-land', x: 0, y: 0, width: VIEW.w, height: VIEW.h }));
     g.appendChild(shape(CREEK, 'bm-sea', mode));
     g.appendChild(shape(MAHIM, 'bm-sea', mode));
-    g.appendChild(stroke(CREEK_EDGE, 'bm-coast', mode));
+    g.appendChild(shape(POWAI, 'bm-sea bm-lake', mode));
+    /* water depth: shore feather, bank, then the river itself */
+    g.appendChild(stroke(MITHI, 'bm-river-shore', mode));
     g.appendChild(stroke(MITHI, 'bm-river-bank', mode));
     g.appendChild(stroke(MITHI, 'bm-river', mode));
-    g.appendChild(shape(POWAI, 'bm-sea bm-lake', mode));
+    g.appendChild(stroke(CREEK_EDGE, 'bm-coast', mode));
 
     PARKS.forEach(function (p) { g.appendChild(shape(p, 'bm-park', mode)); });
-    /* Built-up patches get softened corners so they read as neighbourhoods rather
-       than empty plots on the network map. */
+    /* Built-up patches: alternate light and dense tones so neighbourhoods read
+       as texture rather than empty plots, never loud enough to fight the wards. */
     var proj = PROJ[mode] || PROJ.city;
-    BLOCKS.forEach(function (p) {
+    BLOCKS.forEach(function (p, i) {
       var pts = p.map(function (ll) { return proj(ll[0], ll[1]); });
-      g.appendChild(s('path', { class: 'bm-block', d: roundedPath(pts, 11) }));
+      g.appendChild(s('path', { class: 'bm-block' + (i % 2 ? ' bm-block-dense' : ''),
+                                d: roundedPath(pts, 11) }));
     });
 
-    g.appendChild(stroke(LBS, 'bm-road bm-road-minor', mode));
-    g.appendChild(stroke(SION_MANKHURD, 'bm-road bm-road-minor', mode));
+    /* road hierarchy: major roads get a casing (thick light halo) plus a thinner
+       centreline; minor roads and local streets sit below them in weight. */
+    g.appendChild(stroke(EEH, 'bm-road-casing', mode));
+    g.appendChild(stroke(EEH, 'bm-road-center', mode));
+    g.appendChild(stroke(LBS, 'bm-road-minor', mode));
+    g.appendChild(stroke(SION_MANKHURD, 'bm-road-minor', mode));
     STREETS.forEach(function (p) { g.appendChild(stroke(p, 'bm-street', mode)); });
-    g.appendChild(stroke(EEH, 'bm-road bm-road-major', mode));
     g.appendChild(stroke(RAIL, 'bm-rail', mode));
 
     var labels = s('g', { class: 'bm-labels' });
@@ -216,11 +296,12 @@ window.NIRI = window.NIRI || {};
           6, -5, null, -72);
     g.appendChild(labels);
 
-    /* a small north arrow, always in the top-right of the frame */
-    var north = s('g', { class: 'bm-north', transform: 'translate(' + (VIEW.w - 42) + ' 38)' });
-    north.appendChild(s('path', { d: 'M0 12 L0 -12 L-5 -3 M0 -12 L5 -3' }));
-    north.appendChild(s('text', { x: 0, y: 25, 'text-anchor': 'middle', text: 'N' }));
-    g.appendChild(north);
+    /* city view gets a real compass and scale bar; the local (network) view keeps
+       its own HTML chrome so nothing collides with pipes and nodes. */
+    if (mode === 'city') {
+      g.appendChild(compassRose());
+      g.appendChild(scaleBar(mode));
+    }
     return g;
   }
 
@@ -332,7 +413,7 @@ window.NIRI = window.NIRI || {};
     var host = el('div', { class: 'basemap-host' }, [
       svg,
       el('p', { class: 'map-caption',
-                text: 'schematic base map — not to scale; synthetic city data' })
+                text: 'municipal base map — synthetic city data; scale bar and north up' })
     ]);
 
     function fillFor(zone) {

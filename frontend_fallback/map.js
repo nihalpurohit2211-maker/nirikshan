@@ -58,6 +58,17 @@ window.NIRI = window.NIRI || {};
     var pan = s('g', {});
     surface.appendChild(pan);
 
+    /* shared markers/filters: downstream flow arrow and a soft glow for flow */
+    var defs = s('defs', {}, [
+      s('marker', { id: 'flow-arrow', markerWidth: 9, markerHeight: 9,
+                    refX: 7, refY: 4.5, orient: 'auto', markerUnits: 'strokeWidth' },
+          s('polygon', { points: '0,0 9,4.5 0,9', fill: '#5c5347' })),
+      s('filter', { id: 'pipe-glow', x: '-50%', y: '-50%', width: '200%', height: '200%' },
+          s('feGaussianBlur', { stdDeviation: 1.2, result: 'blur' }),
+          s('feComposite', { in: 'SourceGraphic', in2: 'blur', operator: 'over' })),
+    ]);
+    surface.appendChild(defs);
+
     /* 0. the shared Mumbai base map, under every pipe and node */
     var base = NIRI.basemap.layer('local');
     base.setAttribute('transform', 'scale(1 ' + (H / 720).toFixed(5) + ')');
@@ -119,8 +130,10 @@ window.NIRI = window.NIRI || {};
       if (!a || !b) return;
       var pa = pos(a), pb = pos(b);
       var width = 1.1 + (Math.log(Math.max(10, p.diameter_mm)) / Math.log(1000)) * 6.5;
-      var line = s('line', { class: 'pipe flow', x1: pa[0], y1: pa[1], x2: pb[0], y2: pb[1],
-                             'stroke-width': width.toFixed(2) });
+      var mat = (p.material || 'other').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      var line = s('line', { class: 'pipe flow material-' + mat, x1: pa[0], y1: pa[1],
+                             x2: pb[0], y2: pb[1], 'stroke-width': width.toFixed(2),
+                             'marker-end': 'url(#flow-arrow)' });
       line.dataset.pipe = p.id;
       pipeNodes[p.id] = line;
       var title = s('title', { text: p.id + ' · ' + p.material + ' ' + p.diameter_mm + ' mm · '
@@ -568,11 +581,11 @@ window.NIRI = window.NIRI || {};
         host.appendChild(el('div', { class: 'map-chrome' }, [
           el('div', { class: 'map-compass', title: 'north is up' }, [
             el('span', { class: 'map-compass-n', text: 'N' }),
-            el('span', { class: 'map-compass-arrow', text: '↑' })
+            el('span', { class: 'map-compass-arrow', title: 'north' })
           ]),
           el('div', { class: 'map-scale' }, [
             el('div', { class: 'map-scale-bar',
-                        style: 'width:' + Math.round((scaleKm / KM_PER_UNIT) / W * 100) + '%' }),
+                        style: 'width:' + Math.round(scaleKm / KM_PER_UNIT) + 'px' }),
             el('span', { class: 'mono', text: scaleKm + ' km' })
           ]),
           coords
