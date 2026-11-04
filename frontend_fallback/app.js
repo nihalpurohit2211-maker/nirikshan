@@ -121,6 +121,18 @@
 
   function render() {
     var route = parseHash();
+
+    /* boot() gates the cold load; this repeats the gate for hash-only navigation,
+       so editing the hash by hand cannot walk around the role picker. The attempted
+       deep link is remembered and handed back after a role is chosen. */
+    var role = NIRI.role ? NIRI.role.get() : null;
+    if (!role && route.path !== '/welcome') {
+      var raw = location.hash || '#/';
+      if (raw !== '#/' && raw !== '') NIRI.state.nextHash = raw;
+      location.hash = '#/welcome';
+      return;
+    }
+
     var hit = resolve(route);
     if (!hit) { unknownRoute(route.path); return; }
     var page = NIRI.pages[hit.def.page];

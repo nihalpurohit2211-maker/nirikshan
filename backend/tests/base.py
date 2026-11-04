@@ -1,9 +1,13 @@
 """Shared test harness (PLAN.md §7.10) — stdlib only, no pytest.
 
-Boots the real app under uvicorn on 127.0.0.1:8010 against a TEMP COPY of the
-seeded database (§2 rule 10: dev is 8000, tests are 8010, and a test never writes
-to nirikshan.db). The server starts once per process and is shared by every test
-module, so `unittest discover` boots it exactly once.
+Boots the real app under uvicorn on a free 127.0.0.1 port against a TEMP COPY of
+the seeded database (§2 rule 10: dev is 8000, tests use their own port, and a test
+never writes to nirikshan.db). The server starts once per process and is shared by
+every test module, so `unittest discover` boots it exactly once.
+
+Each process gets its own pre-bound socket, so two unittest commands can run at
+the same time without fighting over the same port. Set NIRIKSHAN_TEST_PORT to pin
+a port when debugging.
 """
 
 import atexit
@@ -11,6 +15,7 @@ import json
 import logging
 import os
 import shutil
+import socket
 import tempfile
 import threading
 import time
@@ -27,11 +32,20 @@ from backend.db import clear_now_cache
 logging.getLogger("nirikshan").setLevel(logging.WARNING)
 
 HOST = "127.0.0.1"
-PORT = 8010
+# 0 asks the OS for a free port; tests read the assigned value back into PORT.
+PORT = int(os.environ.get("NIRIKSHAN_TEST_PORT", "0"))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SEED_DB = os.path.join(ROOT, "nirikshan.db")
 
-_state = {"server": None, "thread": None, "tmpdir": None, "db": None}
+_state = {"server": None, "thread": None, "tmpdir": None, "db": None, "sock": None}
+
+
+def _listen_socket():
+    """Bind before uvicorn starts, so two test processes cannot race for a port."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind((HOST, PORT))
+    return sock
 
 
 def _temp_db():
@@ -56,21 +70,32 @@ def _shutdown():
         thread = _state["thread"]
         if thread is not None:
             thread.join(timeout=10)
+    sock = _state["sock"]
+    if sock is not None:
+        try:
+            sock.close()
+        except OSError:
+            pass
     if _state["tmpdir"] and os.path.isdir(_state["tmpdir"]):
         shutil.rmtree(_state["tmpdir"], ignore_errors=True)
-    _state.update({"server": None, "thread": None, "tmpdir": None, "db": None})
+    _state.update({"server": None, "thread": None, "tmpdir": None, "db": None, "sock": None})
 
 
 def start_server():
+    global PORT
     if _state["server"] is not None:
         return _state["db"]
     tmpdir, db = _temp_db()
+    sock = _listen_socket()
+    PORT = sock.getsockname()[1]
     config = uvicorn.Config(backend_app.app, host=HOST, port=PORT,
                             log_level="warning", access_log=False)
     server = uvicorn.Server(config)
-    thread = threading.Thread(target=server.run, daemon=True, name="nirikshan-test")
+    thread = threading.Thread(target=lambda: server.run(sockets=[sock]), daemon=True,
+                              name="nirikshan-test")
     thread.start()
-    _state.update({"server": server, "thread": thread, "tmpdir": tmpdir, "db": db})
+    _state.update({"server": server, "thread": thread, "tmpdir": tmpdir, "db": db,
+                   "sock": sock})
     deadline = 10.0
     waited = 0.0
     while waited < deadline:
