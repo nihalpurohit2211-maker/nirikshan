@@ -3,106 +3,90 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nirikshan — backend live, UI handoff in progress</title>
+<title>Nirikshan — complaints as sensors</title>
 <!--
-  Placeholder page so "/" never 404s while the frontend is built by another agent.
-  backend/app.py mounts frontend/dist when it exists, otherwise this directory.
-  Theme tokens are the ones docs/FRONTEND_SPEC.md asks the real UI to use (PLAN §9.2).
+  The whole interface: plain HTML/CSS/JS, no npm, no CDN, no build step.
+  backend/app.py serves this directory at "/" (it prefers frontend/dist if that exists).
+  Structure follows docs/FRONTEND_SPEC.md: pages in §5, the map in §6, the demo in §10.
+  Scripts are classic globals in dependency order, all hanging off window.NIRI.
 -->
-<style>
-  :root {
-    --bg: #F7FAF8; --surface: #FFFFFF; --ink: #1B2B22;
-    --green-500: #2F855A; --green-700: #1F5E3F; --accent: #34A853;
-    --warn: #F4B400; --danger: #EA4335; --line: #E2EBE5;
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink);
-    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  .wrap { max-width: 880px; margin: 0 auto; padding: 40px 20px 56px; }
-  header { border-bottom: 3px solid var(--accent); padding-bottom: 16px; margin-bottom: 24px; }
-  h1 { margin: 0 0 6px; font-size: 26px; color: var(--green-700); }
-  .sub { margin: 0; color: #4A6257; }
-  .badge { display: inline-block; padding: 3px 10px; border-radius: 999px;
-    background: #E8F4EC; color: var(--green-700); font-weight: 600; font-size: 12px;
-    letter-spacing: .04em; text-transform: uppercase; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-    gap: 12px; margin: 20px 0 28px; }
-  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
-    padding: 14px 16px; }
-  .card b { display: block; font-size: 22px; color: var(--green-700); margin-top: 4px; }
-  .card span { font-size: 12px; text-transform: uppercase; letter-spacing: .05em;
-    color: #6B8278; }
-  h2 { font-size: 16px; color: var(--green-700); margin: 0 0 10px; }
-  ol, ul { margin: 0 0 8px; padding-left: 22px; }
-  li { margin: 3px 0; }
-  code { background: #EDF3EF; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
-  .note { border-left: 4px solid var(--warn); background: #FFFBEB; padding: 12px 14px;
-    border-radius: 0 8px 8px 0; margin: 22px 0; }
-  footer { margin-top: 32px; padding-top: 14px; border-top: 1px solid var(--line);
-    font-size: 12px; color: #6B8278; }
-</style>
+<link rel="stylesheet" href="app.css">
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <span class="badge">Backend complete &middot; UI handoff in progress</span>
-    <h1>Nirikshan</h1>
-    <p class="sub">Complaints as sensors: shared causes, standards cited, drafts a human approves.</p>
-  </header>
+<div id="shell">
+  <aside id="sidebar">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+        <circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="M9 19c3-6 7-8 14-8-4 3-5 6-5 9" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <div>
+        <h1>Nirikshan</h1>
+        <p class="tagline">Complaints as sensors</p>
+      </div>
+    </div>
+    <nav id="nav" aria-label="Pages"></nav>
+    <div class="side-foot">
+      <p id="ai-mode" class="ai-badge" title="which provider wrote the drafts">AI: …</p>
+      <p id="clock" class="clock"
+         title="demo clock — every timestamp in this app is in this frame">…</p>
+    </div>
+  </aside>
 
-  <div class="grid" id="kpis">
-    <div class="card"><span>Demo clock</span><b id="now">&hellip;</b></div>
-    <div class="card"><span>Open cases</span><b id="cases">&hellip;</b></div>
-    <div class="card"><span>Complaints 24h</span><b id="complaints">&hellip;</b></div>
-    <div class="card"><span>AI mode</span><b id="ai">&hellip;</b></div>
+  <div id="main">
+    <header id="topbar">
+      <div>
+        <h2 id="page-title">Dashboard</h2>
+        <p id="page-sub" class="muted"></p>
+      </div>
+      <div class="topbar-right">
+        <span id="request-id" class="reqid" title="X-Request-Id of the last call"></span>
+      </div>
+    </header>
+
+    <div id="banner" class="banner" role="note">
+      <strong id="banner-strong">Automated findings support human judgment.</strong>
+      <span id="banner-text">They are not official regulatory decisions.</span>
+      <span id="banner-data" class="pill">synthetic sample data</span>
+    </div>
+
+    <div id="view" class="view" tabindex="-1"></div>
+
+    <footer id="foot">
+      <span id="foot-disclaimer"></span>
+      <span class="dot">·</span>
+      <span id="foot-data"></span>
+      <span class="dot">·</span>
+      <span id="foot-counts" class="mono"></span>
+      <span class="dot">·</span>
+      <a href="/docs">API docs</a>
+      <span class="dot">·</span>
+      <a href="/openapi.json">openapi.json</a>
+    </footer>
   </div>
-
-  <div class="note">
-    <h2>What this page is</h2>
-    A single-file placeholder so the server always answers at <code>/</code>. The real
-    React/plain-HTML interface is built from <code>docs/FRONTEND_SPEC.md</code>, which lists
-    every endpoint with a real example response from the seeded database.
-  </div>
-
-  <h2>Try the API now (everything below is live and offline)</h2>
-  <ul>
-    <li><a href="/api/overview"><code>/api/overview</code></a> &mdash; KPIs, triage list, hotspots</li>
-    <li><a href="/api/network"><code>/api/network</code></a> &mdash; 98 nodes, 78 pipes, WQI per node</li>
-    <li><a href="/api/air"><code>/api/air</code></a> &mdash; NAQI per station + 24 h PM forecast</li>
-    <li><a href="/api/land/reports"><code>/api/land/reports</code></a> &mdash; image reports, proximity score, water cross-link</li>
-    <li><a href="/api/cases"><code>/api/cases</code></a> &mdash; the clustered cases (zone_3 is the hero)</li>
-    <li><a href="/docs"><code>/docs</code></a> &mdash; interactive OpenAPI, or <code>/openapi.json</code></li>
-  </ul>
-
-  <h2>The demo path the UI must support</h2>
-  <ol>
-    <li>File a muddy-water complaint at a ward-3 building &rarr; <code>POST /api/complaints</code></li>
-    <li>Watch five complaints collapse into one case &rarr; <code>POST /api/cluster/run</code></li>
-    <li>Trace upstream to the shared cause &rarr; <code>GET /api/trace/{case_id}</code></li>
-    <li>Read the standard cited next to the breach &rarr; <code>GET /api/cases/{id}</code></li>
-    <li>Draft the advisory, approve it as a human &rarr; <code>POST /api/cases/{id}/draft</code>, <code>PATCH /api/cases/{id}/status</code></li>
-    <li>Forecast the chlorine crossing &rarr; <code>GET /api/nodes/zone_5/forecast</code></li>
-  </ol>
-
-  <footer id="footer">Automated findings support human judgment. They are not official
-    regulatory decisions. All data is a synthetic sample.</footer>
 </div>
 
-<script>
-fetch('/api/overview').then(function (r) { return r.json(); }).then(function (d) {
-  var k = d.kpis || {};
-  document.getElementById('now').textContent = d.demo_now || '-';
-  document.getElementById('cases').textContent = k.open_cases != null ? k.open_cases : '-';
-  document.getElementById('complaints').textContent =
-    k.complaints_24h != null ? k.complaints_24h : '-';
-  return fetch('/api/health').then(function (r) { return r.json(); });
-}).then(function (h) {
-  document.getElementById('ai').textContent = h.ai || '-';
-  if (h.disclaimer) document.getElementById('footer').textContent =
-    h.disclaimer + ' Data: ' + (h.data || 'synthetic sample data') + '.';
-}).catch(function () {
-  document.getElementById('ai').textContent = 'backend not reachable';
-});
-</script>
+<div id="toasts" aria-live="polite"></div>
+
+<div id="panel" class="panel-host" hidden>
+  <section class="panel" role="dialog" aria-labelledby="panel-title">
+    <header>
+      <h3 id="panel-title">Node</h3>
+      <div class="panel-head-right">
+        <a id="panel-full" class="link" href="#">Open node detail</a>
+        <button id="panel-close" class="ghost" aria-label="Close panel">Close</button>
+      </div>
+    </header>
+    <div id="panel-body"></div>
+  </section>
+</div>
+
+<script src="api.js"></script>
+<script src="components.js"></script>
+<script src="map.js"></script>
+<script src="pages_core.js"></script>
+<script src="pages_domains.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

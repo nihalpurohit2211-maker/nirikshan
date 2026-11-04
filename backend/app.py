@@ -663,8 +663,10 @@ def list_cases(status: str | None = None, domain: str | None = None):
         for r in rows:
             r["evidence"] = json.loads(r["evidence_json"] or "{}")
             del r["evidence_json"]
-            r["overdue"] = rules_mod.is_overdue(r, by_case.get(r["id"], []), now,
-                                                RULES_CFG)
+            acts = by_case.get(r["id"], [])
+            r["overdue"] = rules_mod.is_overdue(r, acts, now, RULES_CFG)
+            r["last_action"] = max((a["timestamp"] for a in acts),
+                                   default=r["created_at"])
         return {"cases": rows, "count": len(rows), "demo_now": now}
     finally:
         conn.close()
@@ -854,10 +856,14 @@ def _explain_trace(case, steps, worst):
     if not steps:
         return "No upstream path recorded for this case."
     names = [s["node_name"] for s in steps]
-    text = ("%s reports a shared upstream cause. Following the distribution tree"
-            " upstream from there, the water passes %s before it reaches the"
-            " treatment plant at %s." % (case["title"], " -> ".join(names),
-                                          names[-1]))
+    source = steps[-1]
+    kind = str(source.get("node_type") or "source").replace("_", " ")
+    text = ("“%s” groups the reports below. Walking back up the distribution tree from"
+            " them, the path climbs %s and ends at its source: the %s at %s."
+            " Every node on this path is fed from there, so one failing section upstream can"
+            " explain all of them. Water flows the other way: %s to %s."
+            % (case["title"], " -> ".join(names), kind, source["node_name"],
+               source["node_name"], names[0]))
     if not worst:
         return text + " No dated pipe section was recorded on this path."
     k, pipe = worst

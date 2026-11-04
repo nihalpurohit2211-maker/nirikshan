@@ -762,27 +762,30 @@ report with its photo and proximity score (`GET /api/land/reports`).
 Everything here must pass with the Wi-Fi off, running only `PY -m uvicorn
 backend.app:app --port 8000` from a fresh clone plus `PY seed.py`.
 
-- [ ] `http://127.0.0.1:8000/` serves the app (never a 404) with no build step.
-- [ ] Each page in §5 loads: Dashboard, Network Map, Complaints, Cases, Case detail, Node
+All fifteen were checked in a real browser against a running server, twice in a row, on a
+fresh seed (`PY rehearse_demo.py` covers the same path as an automated contract).
+
+- [x] `http://127.0.0.1:8000/` serves the app (never a 404) with no build step.
+- [x] Each page in §5 loads: Dashboard, Network Map, Complaints, Cases, Case detail, Node
       detail, Air Quality, Land Reports, Reports.
-- [ ] Every one of the ten demo beats in §10 completes with no manual SQL or API tinkering.
-- [ ] Network Map draws all 98 nodes and 78 pipes, animates flow, and the three layer
+- [x] Every one of the ten demo beats in §10 completes with no manual SQL or API tinkering.
+- [x] Network Map draws all 98 nodes and 78 pipes, animates flow, and the three layer
       toggles work.
-- [ ] Trace Upstream highlights the path and names the worst pipe in words.
-- [ ] Clustering is a button, and pressing it twice changes nothing (it is idempotent).
-- [ ] Draft advisory shows a DRAFT stamp, and the stamp disappears only after Approve.
-- [ ] Status buttons off the `allowed_transitions` list are disabled, and a forced bad
+- [x] Trace Upstream highlights the path and names the worst pipe in words.
+- [x] Clustering is a button, and pressing it twice changes nothing (it is idempotent).
+- [x] Draft advisory shows a DRAFT stamp, and the stamp disappears only after Approve.
+- [x] Status buttons off the `allowed_transitions` list are disabled, and a forced bad
       `PATCH` shows the server's `detail` message rather than crashing.
-- [ ] The AI badge reads `offline` with no keys set, and every drafted block is labelled.
-- [ ] Disclaimer + "synthetic sample data" visible on every page.
-- [ ] Error envelope surfaced in the UI for 400/404 (e.g. `GET /api/nodes/nope`), never a
+- [x] The AI badge reads `offline` with no keys set, and every drafted block is labelled.
+- [x] Disclaimer + "synthetic sample data" visible on every page.
+- [x] Error envelope surfaced in the UI for 400/404 (e.g. `GET /api/nodes/nope`), never a
       blank screen or an uncaught promise.
-- [ ] Null-safe empty states: a node with no sensor, a report with no image, a non-water
+- [x] Null-safe empty states: a node with no sensor, a report with no image, a non-water
       case with no trace.
-- [ ] Every row of the §13 coverage table has a place in the UI — that table is the list of
+- [x] Every row of the §13 coverage table has a place in the UI — that table is the list of
       stories the data actually supports, generated from the live server.
-- [ ] `npm` is not required for any of the above.
-- [ ] `PY -m unittest discover -s backend/tests` is still green after you finish — the
+- [x] `npm` is not required for any of the above.
+- [x] `PY -m unittest discover -s backend/tests` is still green after you finish — the
       suite covers the API, so a failure means the UI asked the backend to change.
 
 ## 12. Where the truth lives

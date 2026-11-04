@@ -667,6 +667,37 @@ def build_land_meta(conn):
     return len(rows)
 
 
+def build_open_cases(conn):
+    """Cluster once while seeding, so a fresh database opens on real cases instead of an
+    empty table, and date the zone_4 burst from the moment it was reported.
+
+    The demo clock is frozen at NOW (§6.4) and every action a live session writes is
+    stamped NOW, so the 2-hour escalation rule in §5.3 could never fire on screen and the
+    OVERDUE badge in the demo script would be undemonstrable. zone_4's feed main burst at
+    NOW-3h (that is the seeded maintenance row), its four reports came in over the next
+    ninety minutes, and no officer has touched the case since — so its action is stamped
+    with the report time, which is what the escalation rule is measuring.
+    """
+    from backend import rules as rules_mod
+
+    def load(name):
+        with open(os.path.join(ROOT, "config", name), encoding="utf-8") as fh:
+            return json.load(fh)
+
+    limits, aqi_cfg, cfg = load("limits.json"), load("aqi.json"), load("rules.json")
+    rules_mod.cluster(conn, cfg, limits, aqi_cfg)
+    burst = conn.execute(
+        "SELECT id FROM cases WHERE domain = 'water' AND node_id = 'zone_4'"
+        " AND scope = 'MUNICIPAL' AND status != 'Resolved'").fetchone()
+    if burst is not None:
+        conn.execute("UPDATE cases SET created_at = ? WHERE id = ?",
+                     (ts(back(3)), burst["id"]))
+        conn.execute("UPDATE case_actions SET timestamp = ? WHERE case_id = ?",
+                     (ts(back(3)), burst["id"]))
+    return conn.execute("SELECT COUNT(*) AS n FROM cases WHERE status != 'Resolved'"
+                       ).fetchone()["n"]
+
+
 def build_sensors(conn):
     rows = [("S_%s" % nid, nid, "multi") for nid in WATER_SENSOR_NODES]
     rows += [("S_%s" % a[0], a[0], "air") for a in AIR_STATIONS]
@@ -718,14 +749,15 @@ def main():
     n_std = build_standards(conn)
     n_feat = build_features(conn)
     build_land_meta(conn)
+    n_open = build_open_cases(conn)
 
     conn.commit()
 
     zone3 = phys["zone_3"]
     print("seeded %d nodes, %d pipes, %d sensors, %d readings, %d air readings,"
-          " %d complaints, %d standards, %d features"
+          " %d complaints, %d standards, %d features, %d open cases"
           % (len(node_rows), len(pipes), n_sensors, n_readings, n_air, n_complaints,
-             n_std, n_feat))
+             n_std, n_feat, n_open))
     print("baseline zone_3: chlorine %.4f  turbidity %.3f  ph %.2f  tds %.1f"
           " age %.2f h  hops %d"
           % (zone3["chlorine"], zone3["turbidity"], zone3["ph"], zone3["tds"],

@@ -2,7 +2,7 @@ nirikshan.db
 __pycache__/
 node_modules/
 .venv/
-server.log
+*.log
 dist/
 *.pyc
 data/images/upload_*
