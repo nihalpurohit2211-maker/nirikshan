@@ -100,6 +100,12 @@ window.NIRI = window.NIRI || {};
   }
 
   /* ------------------------------------------------------------------ the page */
+  var SELECTED = 'officer';
+  var PAGE = { host: null, params: {} };
+  var GLYPH = { officer: '▦', citizen: '✎', building: '⌂' };
+  var EMAIL = { officer: 'officer@nirikshan.demo', citizen: 'citizen@nirikshan.demo',
+                building: 'admin@nirikshan.demo' };
+
   function proofItem(n, title, line) {
     return el('li', { class: 'landing-proof-item' }, [
       el('span', { class: 'landing-proof-num', 'aria-hidden': 'true', text: String(n) }),
@@ -111,105 +117,113 @@ window.NIRI = window.NIRI || {};
   }
 
   function roleCard(role) {
-    var r = ROLES[role];
-    /* a <button> fires click for Enter and Space natively, so no key handler is needed */
+    var r = ROLES[role], on = role === SELECTED;
     return el('button', {
-      type: 'button',
-      class: 'landing-role',
-      'data-role': role,
-      'aria-label': 'Enter as ' + r.label,
-      on: { click: function () { enterRole(role); } }
+      type: 'button', class: 'auth-account' + (on ? ' on' : ''), 'data-role': role,
+      'aria-pressed': on ? 'true' : 'false',
+      on: { click: function () { SELECTED = role; paint(); } }
     }, [
-      el('span', { class: 'landing-role-glyph', 'aria-hidden': 'true',
-                   text: role === 'officer' ? '▦' : role === 'citizen' ? '✎' : '⌂' }),
-      el('span', { class: 'landing-role-body' }, [
-        el('span', { class: 'landing-role-title', text: r.label }),
-        el('span', { class: 'landing-role-desc', text: r.desc })
+      el('span', { class: 'auth-account-icon', 'aria-hidden': 'true', text: GLYPH[role] }),
+      el('span', { class: 'auth-account-body' }, [
+        el('span', { class: 'auth-account-name', text: r.label }),
+        el('span', { class: 'auth-account-mail', text: EMAIL[role] }),
+        el('span', { class: 'auth-account-desc', text: r.desc })
       ]),
-      el('span', { class: 'landing-role-arrow', 'aria-hidden': 'true', text: '→' })
+      el('span', { class: 'auth-radio', 'aria-hidden': 'true' })
     ]);
+  }
+
+  function paint() {
+    var host = PAGE.host;
+    if (!host) return;
+    NIRI.clear(host);
+    host.appendChild(el('div', { class: 'landing-block auth-block' }, [
+      el('div', { class: 'auth-grid' }, [
+        el('aside', { class: 'auth-brand' }, [
+          el('div', { class: 'landing-brand auth-brandline' }, [
+            brandMark(),
+            el('div', {}, [
+              el('p', { class: 'landing-brand-name', text: 'Nirikshan' }),
+              el('p', { class: 'landing-brand-tag', text: 'Mumbai civic intelligence' })
+            ])
+          ]),
+          el('h1', { class: 'auth-pitch' }, [
+            'The city files its complaints.',
+            el('span', { text: ' Nirikshan finds the one cause.' })
+          ]),
+          el('p', { class: 'auth-lede' },
+            'Reports on water, air, land and waste are read as instrument readings, '
+            + 'grouped against the pipeline network, and turned into cases with a '
+            + 'standard cited and an officer’s signature.'),
+          el('div', { class: 'auth-face' }, [mapMotif()]),
+          el('dl', { class: 'auth-stats', 'aria-label': 'served city totals' }),
+          el('ul', { class: 'auth-proof' }, [
+            proofItem(1, 'Complaint → pipe', 'five reports, one upstream cause'),
+            proofItem(2, 'Standard → citation', 'IS 10500, CPCB, SWM rules'),
+            proofItem(3, 'Draft → signature', 'the assistant drafts, an officer signs')
+          ])
+        ]),
+        el('main', { class: 'auth-panel' }, [
+          el('p', { class: 'auth-eyebrow', text: 'Sign in' }),
+          el('h2', { class: 'auth-title', text: 'Choose your desk' }),
+          el('p', { class: 'auth-sub' },
+            'Three demo identities, one shared city record. No password is asked for '
+            + 'and no server session is created.'),
+          el('div', { class: 'auth-accounts' }, ['officer', 'citizen', 'building'].map(roleCard)),
+          el('div', { class: 'auth-identity' }, [
+            el('span', { text: 'Continuing as' }),
+            el('b', { text: EMAIL[SELECTED] })
+          ]),
+          el('button', { type: 'button', class: 'auth-go',
+            on: { click: function () { enterRole(SELECTED); } } },
+            ['Enter the ' + ROLES[SELECTED].label + ' desk', el('span', { text: '→' })]),
+          el('p', { class: 'auth-note' },
+            'Demo build · the identity is stored in this browser only, so a refresh '
+            + 'keeps the desk and “Switch role” clears it.')
+        ])
+      ]),
+      el('footer', { class: 'landing-foot' }, [
+        el('span', { text: 'Synthetic sample data · demo build' }),
+        el('span', { text: 'Automated findings support human judgment. They are not '
+          + 'official regulatory decisions. · WQI: higher = worse' })
+      ])
+    ]));
+    fillStats();
+  }
+
+  /* The left panel states the city’s served totals, not invented ones: if the API
+     does not answer, the block simply stays empty. */
+  function fillStats() {
+    var slot = PAGE.host && PAGE.host.querySelector('.auth-stats');
+    if (!slot || slot.dataset.filled) return;
+    NIRI.api.get('/api/overview').then(function (o) {
+      var k = (o && o.kpis) || {};
+      var worst = k.worst_wqi || null;
+      var cells = [
+        [k.complaints_24h, 'complaints · 24 h'],
+        [k.open_cases, 'open cases'],
+        [worst && worst.score, 'worst WQI · ' + (worst ? worst.band : '')]
+      ].filter(function (c) { return c[0] !== undefined && c[0] !== null; });
+      slot.dataset.filled = '1';
+      cells.forEach(function (c) {
+        slot.appendChild(el('div', { class: 'auth-stat' }, [
+          el('dt', { text: c[1] }),
+          el('dd', { text: String(c[0]) })
+        ]));
+      });
+    }).catch(function () { /* numbers optional, the page is not */ });
   }
 
   NIRI.pages = NIRI.pages || {};
   NIRI.pages.welcome = {
-    title: 'Welcome',
-    sub: 'demo role switch — pick a pair of eyes and step inside',
+    title: 'Sign in',
+    sub: 'demo identity — no password, no server session',
     render: function (host, params) {
+      PAGE.host = host;
+      PAGE.params = params || {};
       var stored = NIRI.role.get();
-
-      var continueSlot = el('div', { class: 'landing-continue' });
-      if (stored) {
-        continueSlot.appendChild(el('a', {
-          class: 'landing-continue-btn',
-          href: (params && params.next) || NIRI.role.home(stored),
-          text: 'Continue as ' + ROLES[stored].label + ' →'
-        }));
-        /* local convenience; the persistent sidebar "Switch role" is wired by the
-           integrator and is the only other place NIRI.role.clear() is called. */
-        continueSlot.appendChild(el('button', {
-          type: 'button', class: 'ghost landing-switch',
-          title: 'Forget the stored role in this browser',
-          on: { click: function () {
-            NIRI.role.clear();
-            NIRI.clear(host);
-            NIRI.pages.welcome.render(host, params);
-          } }
-        }, 'Change'));
-      }
-
-      host.appendChild(el('div', { class: 'landing-block' }, [
-        el('div', { class: 'landing-grid' }, [
-          /* LEFT — what the product is */
-          el('div', { class: 'landing-left' }, [
-            el('div', { class: 'landing-brand' }, [
-              brandMark(),
-              el('div', {}, [
-                el('p', { class: 'landing-brand-name', text: 'Nirikshan' }),
-                el('p', { class: 'landing-brand-tag', text: 'Mumbai civic intelligence · demo build' })
-              ])
-            ]),
-            el('h1', { class: 'landing-pitch' }, [
-              'Complaints are sensors',
-              el('br', {}),
-              el('span', { class: 'landing-pitch-accent',
-                           text: 'find the shared cause, route it, track it to closure' })
-            ]),
-            el('p', { class: 'landing-support' },
-               'Citizen reports on water, air, land and waste are clustered against the '
-             + 'drain and pipeline network, turned into investigated cases with standards '
-             + 'citations, and followed to closure by a named officer.'),
-            mapMotif(),
-            el('ul', { class: 'landing-proof' }, [
-              proofItem(1, 'Complaint-to-pipe clustering',
-                        'five reports become one upstream cause'),
-              proofItem(2, 'Standards with citations',
-                        'every finding cites IS 10500 / CPCB / SWM'),
-              proofItem(3, 'Human-approved advisory',
-                        'the assistant drafts; an officer signs')
-            ])
-          ]),
-
-          /* RIGHT — enter as */
-          el('div', { class: 'landing-right' }, [
-            continueSlot,
-            el('div', { class: 'landing-right-head' }, [
-              el('h2', { class: 'landing-enter', text: 'Enter as' }),
-              el('span', { class: 'landing-badge', text: 'DEMO' })
-            ]),
-            el('div', { class: 'landing-roles' }, [
-              roleCard('officer'), roleCard('citizen'), roleCard('building')
-            ]),
-            el('p', { class: 'landing-note' },
-               'Demo role switch — stored in this browser only. No passwords.')
-          ])
-        ]),
-        /* The landing hides the app banner, so it carries the same two promises itself. */
-        el('footer', { class: 'landing-foot' }, [
-          el('span', { text: 'Synthetic sample data · demo build' }),
-          el('span', { text: 'Automated findings support human judgment. They are not '
-            + 'official regulatory decisions. · WQI: higher = worse' })
-        ])
-      ]));
+      if (stored) SELECTED = stored;
+      paint();
     }
   };
 }(window.NIRI));

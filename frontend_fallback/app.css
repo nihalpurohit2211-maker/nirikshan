@@ -490,3 +490,55 @@ form .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   *, *::before, *::after { transition-duration: 1ms !important; }
   html { scroll-behavior: auto; }
 }
+
+/* --------------------------------------------------------------- v3 / density
+   The first pass read as one long column of small text: tables ruled like a
+   spreadsheet, numbers the same weight as labels, and a topbar with no anchor.
+   This layer only tightens hierarchy — the palette and tokens above are the
+   same, so every existing view inherits it without a markup change. */
+.view { padding: clamp(16px, 1.8vw, 26px) clamp(18px, 2.4vw, 34px) 14px; }
+#topbar {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
+  padding: 16px clamp(18px, 2.4vw, 34px) 14px;
+  background: color-mix(in srgb, var(--page) 90%, transparent);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(231, 227, 216, .75);
+}
+#topbar h2 {
+  font-size: clamp(24px, 2.1vw, 31px); font-weight: 700;
+  letter-spacing: -.03em; line-height: 1.08;
+}
+#topbar p { margin: 5px 0 0; max-width: 74ch; font-size: 13px; color: var(--muted); }
+#topbar > *:last-child { flex: none; }
+
+.card { border-radius: calc(var(--radius) + 2px); box-shadow: 0 1px 2px rgba(28, 25, 23, .03); }
+.card h4 { margin-bottom: 12px; font-size: 10.5px; letter-spacing: .1em; color: #8a8177; }
+.card h3 { font-size: 17px; letter-spacing: -.015em; }
+
+.kpi .value {
+  font-size: clamp(25px, 2.2vw, 33px); font-weight: 700; line-height: 1.06;
+  letter-spacing: -.03em; font-variant-numeric: tabular-nums;
+}
+.kpi .label { font-size: 10.5px; letter-spacing: .1em; color: #8a8177; }
+.kpi .meta { font-size: 12px; }
+
+table.card-table { border-collapse: separate; border-spacing: 0; font-size: 13px; }
+table.card-table thead th {
+  padding: 9px 14px; background: transparent; border-bottom: 1px solid var(--line);
+  font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+  color: #8a8177; font-weight: 700; white-space: nowrap;
+}
+table.card-table tbody td {
+  padding: 12px 14px; border-bottom: 1px solid #f0ede4; vertical-align: middle;
+}
+table.card-table tbody tr:nth-child(even) > td { background: transparent; }
+table.card-table tbody tr:hover > td { background: #f1f7ef; }
+table.card-table tbody td:first-child { font-weight: 600; color: var(--ink); }
+table.card-table tbody tr:last-child > td { border-bottom: none; }
+.num, td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.badge { border-radius: 999px; padding: 3px 9px; font-size: 10.5px; letter-spacing: .04em; }
+button, .btn, .ghost { border-radius: 10px; }
+#banner { border-radius: 12px; }
+.rule-box { border-radius: 12px; background: #f6f3ea; }
