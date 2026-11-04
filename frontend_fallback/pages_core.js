@@ -1252,9 +1252,10 @@ window.NIRI = window.NIRI || {};
     }
     var chart = NIRI.lineChart({
       height: 260, dual: true, count: kept.length,
+      x: kept.map(function (r) { return api.time(r.timestamp); }),
       series: [
-        { name: 'turbidity', color: '#EA4335', values: turbidity, axis: 'left', lastDot: true },
-        { name: 'chlorine', color: '#2F855A', values: chlorine, axis: 'right', lastDot: true }
+        { name: 'turbidity', unit: 'NTU', color: '#EA4335', values: turbidity, axis: 'left', lastDot: true },
+        { name: 'chlorine', unit: 'mg/L', color: '#2F855A', values: chlorine, axis: 'right', lastDot: true }
       ],
       bands: bands,
       xlabels: [
@@ -1289,7 +1290,7 @@ window.NIRI = window.NIRI || {};
     }
     var chart = NIRI.lineChart({
       height: 200, count: values.length, zeroBase: false,
-      series: [{ name: 'chlorine', color: forecast.breached_now ? '#EA4335' : '#2F855A',
+      series: [{ name: 'chlorine', unit: 'mg/L', color: forecast.breached_now ? '#EA4335' : '#2F855A',
                  values: values, lastDot: true }],
       limits: [{ value: forecast.limit, label: 'minimum ' + forecast.limit + ' mg/L (IS 10500)' }],
       markers: marker,

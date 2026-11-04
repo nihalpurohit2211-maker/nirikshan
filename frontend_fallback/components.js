@@ -195,7 +195,7 @@ window.NIRI = window.NIRI || {};
      lines and the forecast crossing marker are drawn from the values the server sent. */
   function lineChart(cfg) {
     var W = cfg.width || 760, H = cfg.height || 250;
-    var pad = { l: 46, r: cfg.dual ? 52 : 16, t: 16, b: 30 };
+    var pad = { l: 46, r: cfg.dual ? 52 : 16, t: 26, b: 30 };
     var plotW = W - pad.l - pad.r, plotH = H - pad.t - pad.b;
     var n = Math.max(1, (cfg.count || 1) - 1);
     var axes = { left: scale(cfg.series.filter(function (x) { return x.axis !== 'right'; })
@@ -276,11 +276,95 @@ window.NIRI = window.NIRI || {};
       svg.appendChild(s('text', { x: p[0] + 8, y: p[1] - 8, class: 'cap', text: m.label }));
     });
 
+    /* a dual chart with bare tick numbers cannot be read: name the axes */
+    var unitLeft = null, unitRight = null;
+    cfg.series.forEach(function (sr) {
+      if (!sr.unit) return;
+      if (sr.axis === 'right') unitRight = unitRight || sr.unit;
+      else unitLeft = unitLeft || sr.unit;
+    });
+    if (unitLeft) {
+      svg.appendChild(s('text', { class: 'unit', x: pad.l, y: pad.t - 10,
+                                  'text-anchor': 'start', text: unitLeft }));
+    }
+    if (unitRight) {
+      svg.appendChild(s('text', { class: 'unit', x: W - pad.r, y: pad.t - 10,
+                                  'text-anchor': 'end', text: unitRight }));
+    }
+
     (cfg.xlabels || []).forEach(function (x) {
       var p = xy(x.index, axes.left.min);
       svg.appendChild(s('text', { x: p[0], y: pad.t + plotH + 16,
                                   'text-anchor': x.anchor || 'middle', text: x.text }));
     });
+
+    /* hover readout: the chart should answer "what is that point?" without a table */
+    var overlay = s('rect', { class: 'hit', x: pad.l, y: pad.t,
+                              width: plotW, height: plotH });
+    svg.appendChild(overlay);
+    var focus = s('g', { class: 'focus', opacity: '0' });
+    focus.appendChild(s('line', { class: 'guide', x1: 0, x2: 0, y1: pad.t, y2: pad.t + plotH }));
+    var tipBg = s('rect', { class: 'tip-bg', rx: 7, ry: 7, width: 0, height: 0 });
+    focus.appendChild(tipBg);
+    var tipLines = [];
+    for (var t = 0; t <= cfg.series.length; t++) {
+      tipLines.push(s('text', { class: 'tip-line', x: 0, y: 0 }));
+      focus.appendChild(tipLines[t]);
+    }
+    var focusDots = cfg.series.map(function (sr) {
+      var d = s('circle', { class: 'focus-dot', r: 3.4, fill: sr.color, opacity: '0' });
+      focus.appendChild(d);
+      return d;
+    });
+    svg.appendChild(focus);
+
+    function num(v) {
+      return Math.abs(v) >= 100 ? String(Math.round(v)) : String(Math.round(v * 100) / 100);
+    }
+
+    function showAt(ev) {
+      var box = svg.getBoundingClientRect();
+      if (!box.width) return;
+      var vx = ((ev.clientX - box.left) / box.width) * W;
+      var i = Math.round(((vx - pad.l) / plotW) * n);
+      i = Math.max(0, Math.min(n, i));
+      var x = pad.l + (i / n) * plotW;
+      var guide = focus.firstChild;
+      guide.setAttribute('x1', x); guide.setAttribute('x2', x);
+      var lines = [];
+      if (cfg.x && cfg.x[i] !== undefined) lines.push(String(cfg.x[i]));
+      cfg.series.forEach(function (sr, k) {
+        var off = sr.startIndex === undefined ? 0 : sr.startIndex;
+        var v = sr.values[i - off];
+        var dot = focusDots[k];
+        if (v === null || v === undefined) { dot.setAttribute('opacity', '0'); return; }
+        dot.setAttribute('opacity', '1');
+        dot.setAttribute('cx', x);
+        dot.setAttribute('cy', xy(i, v, sr.axis)[1]);
+        lines.push(sr.name + '  ' + num(v) + (sr.unit ? ' ' + sr.unit : ''));
+      });
+      tipLines.forEach(function (node, k) {
+        node.textContent = k < lines.length ? lines[k] : '';
+      });
+      var widest = lines.reduce(function (m, l) { return Math.max(m, l.length); }, 4);
+      var width = Math.min(plotW - 8, 18 + widest * 6.2);
+      var height = 12 + lines.length * 15;
+      var tx = x + 12;
+      if (tx + width > W - pad.r) tx = x - 12 - width;
+      tx = Math.max(pad.l + 2, tx);
+      var ty = pad.t + 6;
+      tipBg.setAttribute('x', tx); tipBg.setAttribute('y', ty);
+      tipBg.setAttribute('width', width); tipBg.setAttribute('height', height);
+      tipLines.forEach(function (node, k) {
+        node.setAttribute('x', tx + 9);
+        node.setAttribute('y', ty + 17 + k * 15);
+      });
+      focus.setAttribute('opacity', '1');
+    }
+
+    overlay.addEventListener('pointermove', showAt);
+    overlay.addEventListener('pointerdown', showAt);
+    overlay.addEventListener('pointerleave', function () { focus.setAttribute('opacity', '0'); });
     return svg;
   }
 

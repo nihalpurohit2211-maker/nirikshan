@@ -624,3 +624,14 @@ button, .btn, .ghost { border-radius: 10px; }
 .flow-title { font-size: 13px; font-weight: 650; color: var(--ink); }
 .flow-note { font-size: 11.5px; color: var(--muted); }
 .node-head::before { background: var(--water); }
+
+/* chart anatomy: named axes, a crosshair, and a readout that follows the pointer */
+.chart .unit {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; fill: #9a9186;
+}
+.chart .hit { fill: transparent; cursor: crosshair; }
+.chart .guide { stroke: #b9b1a4; stroke-width: 1; stroke-dasharray: 3 3; }
+.chart .focus-dot { stroke: var(--surface); stroke-width: 1.4; }
+.chart .tip-bg { fill: #1B2B22; opacity: .94; }
+.chart .tip-line { fill: #F6F3EA; font-size: 10.5px; font-weight: 600; }

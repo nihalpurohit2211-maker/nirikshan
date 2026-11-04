@@ -83,9 +83,10 @@
           + ', thinned to ' + kept.length + '. The NAQI line is the server’s, not a re-computation.'),
         NIRI.lineChart({
           height: 240, count: kept.length, zeroBase: true, dual: true,
+          x: kept.map(function (r) { return api.time(r.timestamp); }),
           series: [
-            { name: 'NAQI', color: '#9B1C1C', values: kept.map(function (r) { return r.aqi; }), axis: 'left', lastDot: true },
-            { name: 'PM10', color: '#2F855A', values: kept.map(function (r) { return r.pm10; }), axis: 'right' }
+            { name: 'NAQI', unit: 'NAQI', color: '#9B1C1C', values: kept.map(function (r) { return r.aqi; }), axis: 'left', lastDot: true },
+            { name: 'PM10', unit: 'µg/m³', color: '#2F855A', values: kept.map(function (r) { return r.pm10; }), axis: 'right' }
           ],
           xlabels: [
             { index: 0, text: api.time(kept[0].timestamp), anchor: 'start' },
@@ -150,7 +151,8 @@
             ]),
             NIRI.lineChart({
               height: 210, count: projected.length, zeroBase: false, markers: marker,
-              series: [{ name: (forecast.parameter || 'pm').toUpperCase(), color: worst.aqi ? worst.aqi.colour : '#EA4335',
+              series: [{ name: (forecast.parameter || 'pm').toUpperCase(), unit: 'µg/m³',
+                         color: worst.aqi ? worst.aqi.colour : '#EA4335',
                          values: projected, lastDot: true }],
               xlabels: [{ index: 0, text: 'now', anchor: 'start' },
                         { index: projected.length - 1, text: '+' + forecast.horizon_hours + ' h', anchor: 'end' }],
