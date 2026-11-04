@@ -83,10 +83,28 @@ class Provider:
         raise NotSupported("%s has no vision" % self.name)
 
 
+# `LLM_API_KEY` is the documented name. Hosts and AI Studio hand out keys under
+# provider-specific names, so accept those too rather than making a working key
+# look like a missing one. The first non-empty value wins.
+_KEY_ENV = {
+    "gemini": ("LLM_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY"),
+    "openai": ("LLM_API_KEY", "OPENAI_API_KEY"),
+}
+
+
+def _first_env(names):
+    for name in names:
+        value = (os.environ.get(name) or "").strip()
+        if value:
+            return value
+    return ""
+
+
 def _env():
+    provider = (os.environ.get("LLM_PROVIDER") or "offline").strip().lower()
     return {
-        "provider": (os.environ.get("LLM_PROVIDER") or "offline").strip().lower(),
-        "key": (os.environ.get("LLM_API_KEY") or "").strip(),
+        "provider": provider,
+        "key": _first_env(_KEY_ENV.get(provider, ("LLM_API_KEY",))),
         "model": (os.environ.get("LLM_MODEL") or "").strip(),
         "base": (os.environ.get("LLM_BASE_URL") or "").strip(),
         "timeout": _timeout(),

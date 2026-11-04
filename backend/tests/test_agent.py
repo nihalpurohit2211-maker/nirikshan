@@ -13,7 +13,8 @@ import unittest
 from backend import agent
 from backend.tests.base import NirikshanTest, api
 
-_ENV_KEYS = ("LLM_PROVIDER", "LLM_API_KEY", "LLM_MODEL", "LLM_BASE_URL")
+_ENV_KEYS = ("LLM_PROVIDER", "LLM_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY",
+             "OPENAI_API_KEY", "LLM_MODEL", "LLM_BASE_URL")
 
 
 def _set_env(key, value):
@@ -242,6 +243,21 @@ class ProviderSelectionTest(unittest.TestCase):
         provider = agent.build_provider()
         self.assertIsInstance(provider, agent.GeminiProvider)
         self.assertEqual(provider.model, "gemini-2.5-flash")
+
+    def test_gemini_accepts_gemini_api_key_alias(self):
+        _set_env("LLM_PROVIDER", "gemini")
+        _set_env("GEMINI_API_KEY", "fake-gemini-key")
+        provider = agent.build_provider()
+        self.assertIsInstance(provider, agent.GeminiProvider)
+        self.assertEqual(provider.key, "fake-gemini-key")
+
+    def test_llm_api_key_wins_over_provider_alias(self):
+        _set_env("LLM_PROVIDER", "gemini")
+        _set_env("LLM_API_KEY", "primary-key")
+        _set_env("GEMINI_API_KEY", "alias-key")
+        provider = agent.build_provider()
+        self.assertIsInstance(provider, agent.GeminiProvider)
+        self.assertEqual(provider.key, "primary-key")
 
     def test_openai_with_model(self):
         _set_env("LLM_PROVIDER", "openai")
