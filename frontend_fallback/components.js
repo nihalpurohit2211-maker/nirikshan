@@ -147,6 +147,11 @@ window.NIRI = window.NIRI || {};
 
   function table(columns, rows, opts) {
     opts = opts || {};
+    /* The wrapper is the scroll container: `overflow-x` on a <table> itself does
+       nothing, and at 1024 a five-column table widened the whole page. */
+    function box(tableEl) {
+      return el('div', { class: 'table-scroll' }, [tableEl]);
+    }
     var head = el('thead', {}, el('tr', {}, columns.map(function (c) {
       return el('th', { class: c.num ? 'num' : null, text: c.label, title: c.title || null });
     })));
@@ -164,11 +169,11 @@ window.NIRI = window.NIRI || {};
                   }));
     }));
     if (!rows.length) {
-      return el('div', { class: 'card-table' }, [head, el('tbody', {},
+      return box(el('table', { class: 'table card-table scroll-x' }, [head, el('tbody', {},
         el('tr', {}, el('td', { colspan: columns.length, class: 'muted',
-                                text: opts.empty || 'nothing here' })))]);
+                                text: opts.empty || 'nothing here' })))]));
     }
-    return el('div', { class: 'card-table scroll-x' }, [head, body]);
+    return box(el('table', { class: 'table card-table scroll-x' }, [head, body]));
   }
 
   /* ---------------------------------------------------------------- charts */

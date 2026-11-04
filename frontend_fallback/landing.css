@@ -1,0 +1,231 @@
+/* landing.css — Workstream B: styles for the #/welcome split-screen landing page.
+   Everything is under .landing-* except one shell-collapse rule scoped to
+   `#view:has(> .landing-block)`, so the landing can go full-bleed without a
+   change to app.css or app.js. Tokens use the shared app.css variables where
+   names collide, with the workstream-B palette as the fallback. */
+
+:root {
+  --forest: #14532d;
+  --sage: #6b8f71;
+  --page: #f7f5ef;
+}
+
+/* Full-bleed: while the welcome page owns #view, the app chrome steps back.
+   #foot is a sibling of #view inside #main, so it needs the #shell:has() form too —
+   `#view ~ #foot` never matched and left the footer under the landing page. */
+#view:has(> .landing-block) { padding: 0; }
+#shell:has(#view > .landing-block) { grid-template-columns: 1fr; }
+#shell:has(#view > .landing-block) #sidebar,
+#shell:has(#view > .landing-block) #topbar,
+#shell:has(#view > .landing-block) #banner,
+#shell:has(#view > .landing-block) #foot,
+body[data-page="welcome"] #ask-fab { display: none; }
+
+/* The brand is a link back to the picker; it must still read as a brand, not a link. */
+a.brand { color: inherit; text-decoration: none; }
+a.brand:hover h1 { color: var(--forest-hover, #166534); }
+.role-chip {
+  margin: 0; align-self: flex-start;
+  font-size: 11px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--forest, #14532d); background: var(--forest-tint, #eaf1ea);
+  border: 1px solid var(--forest-tint-2, #dce8dc); border-radius: 999px; padding: 3px 10px;
+}
+.switch-role { align-self: flex-start; font-size: 12px; padding: 5px 10px; }
+
+.landing-block {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(1100px 520px at 88% -10%,
+      color-mix(in srgb, var(--sage, #6b8f71) 12%, transparent), transparent 70%),
+    var(--page, #f7f5ef);
+  color: var(--ink, #1c1917);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Not `place-items: center` on a grid parent: that shrink-wraps the track to min-content
+   and the split screen collapses into one narrow column. */
+.landing-grid {
+  flex: 1 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(400px, 0.95fr);
+  gap: clamp(40px, 6vw, 88px);
+  align-items: center;
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: clamp(32px, 5vh, 64px) clamp(28px, 4vw, 56px);
+}
+
+.landing-foot {
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 clamp(28px, 4vw, 56px) 20px;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 28px;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--muted, #6b7280);
+}
+.landing-foot span:last-child { max-width: 72ch; }
+
+/* ------------------------------------------------------------------ left */
+.landing-left { min-width: 0; }
+
+.landing-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 26px; }
+.landing-mark { width: 34px; height: 34px; flex: none; color: var(--forest, #14532d); }
+.landing-brand-name {
+  margin: 0; font-size: 15px; font-weight: 700; letter-spacing: .01em;
+  color: var(--forest, #14532d);
+}
+.landing-brand-tag { margin: 1px 0 0; font-size: 12px; color: var(--muted, #6b7280); }
+
+.landing-pitch {
+  margin: 0 0 14px;
+  font-size: clamp(28px, 3.1vw, 40px);
+  line-height: 1.16;
+  font-weight: 700;
+  letter-spacing: -.015em;
+  color: var(--forest, #14532d);
+}
+.landing-pitch-accent {
+  font-size: .62em;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--sage, #6b8f71);
+}
+
+.landing-support {
+  margin: 0 0 26px;
+  max-width: 54ch;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--ink-2, #44403c);
+}
+
+.landing-map { display: block; width: min(320px, 78%); height: auto; margin: 0 0 28px; }
+.landing-land { fill: color-mix(in srgb, var(--sage, #6b8f71) 16%, var(--surface, #fffdf7)); }
+.landing-creek {
+  fill: none; stroke: color-mix(in srgb, var(--sage, #6b8f71) 55%, transparent);
+  stroke-width: 2.4; stroke-linecap: round;
+}
+.landing-link {
+  stroke: color-mix(in srgb, var(--sage, #6b8f71) 45%, transparent);
+  stroke-width: 1.2; stroke-dasharray: 3 4;
+}
+.landing-dot { fill: var(--sage, #6b8f71); }
+.landing-hub { fill: var(--forest, #14532d); }
+
+.landing-proof { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.landing-proof-item { display: flex; gap: 12px; align-items: flex-start; }
+.landing-proof-num {
+  flex: none; width: 22px; height: 22px; margin-top: 1px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 11.5px; font-weight: 700;
+  color: var(--forest, #14532d);
+  background: color-mix(in srgb, var(--sage, #6b8f71) 18%, var(--surface, #fffdf7));
+  border: 1px solid color-mix(in srgb, var(--sage, #6b8f71) 40%, transparent);
+}
+.landing-proof-title {
+  margin: 0; font-size: 13.5px; font-weight: 650; color: var(--ink, #1c1917);
+}
+.landing-proof-line {
+  margin: 1px 0 0; font-size: 12.5px; color: var(--muted, #6b7280);
+}
+
+/* ------------------------------------------------------------------ right */
+.landing-right {
+  display: grid; gap: 18px;
+  background: var(--surface, #fffdf7);
+  border: 1px solid var(--line, #e7e3d8);
+  border-radius: var(--radius, 14px);
+  box-shadow: var(--shadow, 0 12px 28px rgba(28, 25, 23, .06));
+  padding: clamp(24px, 3vw, 36px);
+}
+
+.landing-continue:not(:empty) {
+  display: flex; align-items: center; gap: 10px;
+  padding-bottom: 16px; border-bottom: 1px solid var(--line, #e7e3d8);
+}
+.landing-continue-btn {
+  font-size: 13.5px; font-weight: 650; text-decoration: none;
+  color: var(--forest, #14532d);
+  background: color-mix(in srgb, var(--sage, #6b8f71) 12%, var(--surface, #fffdf7));
+  border: 1px solid color-mix(in srgb, var(--sage, #6b8f71) 45%, transparent);
+  border-radius: 10px; padding: 8px 14px;
+  transition: background .12s ease;
+}
+.landing-continue-btn:hover { background: color-mix(in srgb, var(--sage, #6b8f71) 22%, var(--surface, #fffdf7)); }
+.landing-switch { font-size: 12px; }
+
+.landing-right-head { display: flex; align-items: baseline; gap: 10px; }
+.landing-enter {
+  margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -.01em;
+  color: var(--forest, #14532d);
+}
+.landing-badge {
+  font-size: 10.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--sage, #6b8f71);
+  border: 1.5px dashed color-mix(in srgb, var(--sage, #6b8f71) 60%, transparent);
+  border-radius: 999px; padding: 2px 9px;
+}
+
+.landing-roles { display: grid; gap: 12px; }
+
+.landing-role {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px;
+  text-align: left; cursor: pointer;
+  font: inherit; color: inherit;
+  background: var(--surface, #fffdf7);
+  border: 1px solid var(--line, #e7e3d8);
+  border-radius: calc(var(--radius, 14px) - 4px);
+  padding: 15px 17px;
+  transition: border-color .14s ease, box-shadow .14s ease, transform .14s ease;
+}
+.landing-role:hover,
+.landing-role:focus-visible {
+  border-color: var(--sage, #6b8f71);
+  box-shadow: var(--shadow, 0 12px 28px rgba(28, 25, 23, .06));
+  transform: translateY(-1px);
+}
+.landing-role:focus-visible { outline: 2px solid var(--forest, #14532d); outline-offset: 2px; }
+
+.landing-role-glyph {
+  width: 34px; height: 34px; border-radius: 10px;
+  display: grid; place-items: center;
+  font-size: 15px;
+  color: var(--forest, #14532d);
+  background: color-mix(in srgb, var(--sage, #6b8f71) 14%, var(--surface, #fffdf7));
+}
+.landing-role-body { display: grid; gap: 2px; min-width: 0; }
+.landing-role-title { font-size: 14.5px; font-weight: 700; color: var(--ink, #1c1917); }
+.landing-role-desc { font-size: 12.5px; line-height: 1.45; color: var(--muted, #6b7280); }
+.landing-role-arrow {
+  font-size: 16px; color: var(--sage, #6b8f71);
+  transition: transform .14s ease;
+}
+.landing-role:hover .landing-role-arrow,
+.landing-role:focus-visible .landing-role-arrow { transform: translateX(3px); }
+
+.landing-note {
+  margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--muted, #6b7280);
+  border-top: 1px dashed var(--line, #e7e3d8); padding-top: 12px;
+}
+
+/* Responsive: hold the split down to 1024px, stack only below it. */
+@media (max-width: 1023px) {
+  .landing-grid { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+  .landing-right { max-width: 560px; }
+  .landing-map { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-role, .landing-role-arrow, .landing-continue-btn { transition: none; }
+  .landing-role:hover, .landing-role:focus-visible { transform: none; }
+}
