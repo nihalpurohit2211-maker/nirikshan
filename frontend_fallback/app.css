@@ -201,7 +201,20 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   border: 1.5px dashed #d6d0c0; border-radius: 12px; padding: 20px; color: var(--muted);
   font-size: var(--fs-sm); background: var(--page); text-align: center;
 }
-.loading { color: var(--muted); font-size: var(--fs-sm); padding: 20px 2px; }
+.loading { color: var(--muted); font-size: var(--fs-sm); padding: 12px 2px 20px; }
+.loading-block { display: grid; gap: 2px; }
+.loading-rail {
+  height: 3px; margin: 8px 2px 0; border-radius: 2px;
+  background: var(--line); overflow: hidden;
+}
+.loading-rail i {
+  display: block; width: 30%; height: 100%; border-radius: 2px;
+  background: var(--forest); animation: loadslide 1.2s ease-in-out infinite;
+}
+@keyframes loadslide {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(360%); }
+}
 .error-box {
   border: 1px solid #eec2be; background: var(--danger-tint); color: #8f1d16; border-radius: 12px;
   padding: 14px 16px; font-size: var(--fs-sm); line-height: 1.6;
@@ -486,7 +499,8 @@ form .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pipe.flow, .pipe.trace, .pulse, .overdue::before, .skeleton::after, .toast { animation: none; }
+  .pipe.flow, .pipe.trace, .pulse, .overdue::before, .skeleton::after, .toast,
+  .loading-rail i { animation: none; }
   *, *::before, *::after { transition-duration: 1ms !important; }
   html { scroll-behavior: auto; }
 }

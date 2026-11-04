@@ -130,7 +130,14 @@ window.NIRI = window.NIRI || {};
 
   function empty(message) { return el('div', { class: 'empty', text: message }); }
   function note(message, cls) { return el('div', { class: 'note' + (cls ? ' ' + cls : ''), text: message }); }
-  function loading(text) { return el('p', { class: 'loading', text: text || 'loading…' }); }
+  /* A thin travelling rail instead of a bare line of text: the page says it is
+     working in the same breath as it says what it is waiting for. */
+  function loading(text) {
+    return el('div', { class: 'loading-block', role: 'status', 'aria-live': 'polite' }, [
+      el('div', { class: 'loading-rail' }, el('i')),
+      el('span', { class: 'loading', text: text || 'loading…' })
+    ]);
+  }
 
   function errorBox(err) {
     var status = err && err.status ? err.status : 0;
