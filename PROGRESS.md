@@ -7,7 +7,7 @@
 
 - [x] Phase 0 — scaffold, venv, pinned deps, `config/*.json`, `docs/` → **CP0** (committed `d5b5f60`)
 - [x] Phase 1 — `schema.sql`, `seed.py`, `verify_seed.py`, demo numbers contract → **CP1** (31 checks, 0 failures)
-- [ ] Phase 2 — backend core modules + API + tests green on 8010 → **CP2**
+- [x] Phase 2 — backend core modules + API + tests green on 8010 → **CP2** (50 tests, OK)
 - [ ] Phase 3 — `agent.py` + offline fallback, DRAFT stamp → **CP3**
 - [ ] Phase 4 — `frontend_fallback/index.html` (first) + React app builds → **CP4**
 - [ ] Phase 5 — air + land + reports wired, all scenarios walk through → **CP5**
@@ -57,12 +57,32 @@
   ward candidates. Nothing else about §7.7 changed and no seed number was touched.
 - Windows console renders the `§` in test labels as `` (e.g. "pipes ~79 (6.2)").
   Cosmetic only, on `cp1252` stdout; the files and assertions are UTF-8 and correct.
+- **`standards.py` is the only place a standards row is written.** The UI, the case payload
+  and `seed.py` all read the same 13 rows generated from `config/limits.json` +
+  `config/aqi.json`, so a citation can never disagree with the limit the classifier used.
+  NAQI rows pair the 6 concentration breakpoints with `index_bounds[0..5]`; `index_bounds[6]`
+  (500) is the above-range clamp, which is why the startup validator checks
+  `len(index_bounds) >= len(*_breakpoints)` and not equality.
+- **The trace reveal is physics, not a string.** `/api/cases/{id}/trace` narrates the pipe
+  with the **highest `decay_k`** on the path (§6.3), which lands on `P048` (J02 -> J03, CI,
+  1991, 150 mm, k = 0.257) — the same pipe the demo script promises the judge will see in
+  red. Hardcoding "the oldest pipe" narrated the 1986 DI trunk instead (k = 0.143).
+- `backend/app.py` validates all three config files at import (`validate_config()`) and
+  fails fast, including the weights-sum, wqi-band-coverage and breakpoint-length checks —
+  it caught the `index_bounds` assumption on the first import. Separately, three magic
+  literals were removed while writing Phase 2: the case-id year (`db.next_id` now derives
+  it from `demo_now()`), the pipe-age reference year (`graph.py` imports `REFERENCE_YEAR`),
+  and the hotspot window timestamp. Keep it that way.
 
 ## Gate results
 
 - **Gate 0:** `PY -c "import json; ..."` -> `config ok` · committed `d5b5f60 CP0: scaffold, pinned deps, config`
 - **Gate 1:** `PY seed.py` then `PY verify_seed.py` -> **31 checks, 0 failures**, exit 0
   (`set -o pipefail` — a plain pipe to `tail` hides the real exit code behind `tail`'s 0).
+- **Gate 2:** `PY seed.py` then `PY -m unittest discover -s backend/tests -v` -> **Ran 50
+  tests, OK**, exit 0. Gate 1 re-run after the Phase 2 edits: still 31 / 0. Tests boot on
+  **8010** against a temp copy of `nirikshan.db`; port 8010 was free, no `base.py` change
+  needed.
 
 ---
 
@@ -105,3 +125,31 @@
 - Blockers: none.
 - Next action for the next agent: Phase 2 (§7) — `backend/standards.py`, then `backend/app.py`
   with the §7.9 endpoints, then `backend/tests/` (port 8010, temp DB): `PY -m unittest discover -s backend/tests -v`.
+
+## SESSION — 2026-11-04 09:40 — unattended agent (build session 3)
+- Entered at: CP1 (verified by `git log --oneline` -> `36da67e CP1: ...`, and by re-running
+  `PY seed.py && PY verify_seed.py` -> 31 / 0). Session 2 had died after writing `app.py` and
+  five test files but **before ever running the suite**.
+- Work done (Phase 2 complete):
+  - `backend/standards.py` (§7.8) — the single generator for the 13 standards rows; `seed.py`
+    now delegates to it (`build_standards`) and `app.py` syncs it in the lifespan handler.
+  - `backend/app.py` (§7.9) — 21 endpoints, config validation at import, JSON error envelope
+    + request-id middleware for every failure path, bulk loads only, `_agent()` lazy import so
+    the Phase 2 gate passes before Phase 3 exists, static mount for `/data/images` then the UI.
+  - `backend/tests/` (§7.10) — `base.py` harness (temp DB copy, in-process uvicorn on 8010,
+    server shared across modules, `{"detail": ...}` envelope asserted by `expect_error`) plus
+    `test_health.py`, `test_seed.py` (one test per §6.7 row), `test_cluster.py` (idempotency,
+    status whitelist, the 1991-main trace reveal), `test_forecast.py` (S4 pinned 21 h, both
+    forecast branches, 404 path), `test_air_land.py` (S6/S7/S8, N0, network, hotspots, images).
+  - Fixes found by writing the tests: `worst` station payload key (`id`, not `station_id`);
+    the binary-image request crashed the harness decoder; per-row `land_meta` query replaced
+    by one bulk load; `api_headers` added so the middleware test stops hand-building URLs.
+- Left at: CP2 — gate **PASS** (50 tests, OK, exit 0; Gate 1 still 31 / 0), committed as
+  `CP2: backend core, all tests green`.
+- Blockers: none. `BLOCKED.md` does not exist and is not needed.
+- Next action for the next agent: Phase 3 (§8) — `backend/agent.py` (Provider /
+  GeminiProvider / OpenAICompatProvider / OfflineProvider, `get_provider`,
+  `extract_complaint`, `explain_case`, `draft_advisory`, `draft_daily`, `provider_mode` —
+  `app.py` already calls `provider_mode()`), the verbatim prompts, the one-retry-then-offline
+  rule, `backend/tests/test_agent.py`, then Gate 3: tests green **and**
+  `POST /api/cases/{id}/draft` returns `"status": "DRAFT"`.

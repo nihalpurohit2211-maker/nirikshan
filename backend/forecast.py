@@ -137,9 +137,11 @@ def forecast_chlorine(conn, node_id, rules_cfg=None):
 
     if slope < 0 and c_now < c_24 < c_48:
         method = "trend"
+        k = None
+
         def proj(t):
             return c_now + slope * t
-    else:
+    else:                                          # otherwise physics decay
         method = "physics"
         pipe = conn.execute(
             "SELECT * FROM pipes WHERE to_node = ? ORDER BY id LIMIT 1", (node_id,)
@@ -147,6 +149,7 @@ def forecast_chlorine(conn, node_id, rules_cfg=None):
         if pipe is None:
             return None
         k = decay_k(pipe["diameter_mm"], pipe["install_year"], pipe["material"])
+
         def proj(t):
             return c_now * math.exp(-k * t)
 
@@ -166,6 +169,7 @@ def forecast_chlorine(conn, node_id, rules_cfg=None):
         "c_48": round(c_48, 4),
         "slope_per_hour": round(slope, 6),
         "method": method,
+        "decay_k": round(k, 4) if k is not None else None,
         "limit": minimum,
         "horizon_hours": horizon,
         "breached_now": c_now < minimum,

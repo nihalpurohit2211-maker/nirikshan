@@ -604,12 +604,16 @@ def _cross_link(conn, node_id):
 def hotspots(conn, cfg, limits):
     """Ranked wards/stations with a factor breakdown (§9.5)."""
     from backend import wqi as wqi_mod
+    from backend.db import demo_now
+
     latest = bulk_latest(conn)
     coliform = bulk_coliform(conn)
     cases = [dict(r) for r in conn.execute(
         "SELECT * FROM cases WHERE status != 'Resolved'").fetchall()]
     window_h = cfg["clustering"]["window_hours"]
     rows = conn.execute("SELECT * FROM nodes WHERE type = 'zone' ORDER BY id").fetchall()
+    desc_index, _c, _p = load_descendant_index(conn)
+    now_str = demo_now(conn)
     out = []
     severity_points = {"Emergency": 30, "High": 25, "Medium": 15, "Low": 5}
     for z in rows:
@@ -617,13 +621,13 @@ def hotspots(conn, cfg, limits):
         values = latest.get(node_id)
         col = coliform.get(node_id)
         wq = wqi_mod.compute(values, col, limits) if values else None
-        zone_cases = [c for c in cases if c["node_id"] == node_id
-                      or _in_zone(conn, c["node_id"], node_id)]
+        downstream = desc_index.get(node_id, set()) | {node_id}
+        zone_cases = [c for c in cases if c["node_id"] in downstream]
         comps = conn.execute(
             "SELECT COUNT(*) AS n FROM complaints WHERE domain = 'water'"
             " AND node_id IN (SELECT id FROM nodes WHERE zone_id = ?)"
-            " AND timestamp >= datetime('2026-11-03 09:00:00', ?)",
-            (node_id, "-%d hours" % window_h)).fetchone()["n"]
+            " AND timestamp >= datetime(?, ?)",
+            (node_id, now_str, "-%d hours" % window_h)).fetchone()["n"]
         factors = {
             "wqi": round(wq["score"], 1) if wq else 0,
             "open_cases": len(zone_cases),
@@ -638,20 +642,3 @@ def hotspots(conn, cfg, limits):
                     "cases": [c["id"] for c in zone_cases]})
     out.sort(key=lambda r: (-r["score"], r["node_id"]))
     return out
-
-
-def _in_zone(conn, node_id, zone_id):
-    if not node_id:
-        return False
-    cur = node_id
-    for _ in range(20):
-        row = conn.execute("SELECT zone_id, parent_id FROM nodes WHERE id = ?",
-                           (cur,)).fetchone()
-        if row is None:
-            return False
-        if row["zone_id"] == zone_id:
-            return True
-        if row["parent_id"] is None:
-            return False
-        cur = row["parent_id"]
-    return False

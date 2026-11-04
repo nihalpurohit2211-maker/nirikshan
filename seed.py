@@ -632,53 +632,16 @@ def build_history(conn):
 # ===========================================================================
 
 def build_standards(conn):
+    """The standards rows the UI cites come from backend.standards — the single
+    source, derived from config/*.json, so seed and API can never disagree."""
+    from backend import standards as standards_mod
+
     with open(os.path.join(ROOT, "config", "limits.json"), encoding="utf-8") as fh:
         limits = json.load(fh)
-    p = limits["parameters"]
-    rows, sid = [], 0
-
-    def add(domain, parameter, acceptable, permissible, unit, citation):
-        nonlocal sid
-        sid += 1
-        rows.append((sid, domain, parameter, acceptable, permissible, unit, citation))
-
-    add("water", "pH", "6.5 - 8.5", "6.5 - 8.5 (no relaxation)", "",
-        "IS 10500:2012, Table 1, excerpt - verify")
-    add("water", "Turbidity (NTU)", str(p["turbidity_ntu"]["acceptable"]),
-        "%s (only when no alternative source)" % p["turbidity_ntu"]["permissible"], "NTU",
-        "IS 10500:2012, Table 1, excerpt - verify")
-    add("water", "Total Dissolved Solids", str(p["tds_mgl"]["acceptable"]),
-        str(p["tds_mgl"]["permissible"]), "mg/L",
-        "IS 10500:2012, Table 1, excerpt - verify")
-    add("water", "Residual chlorine (minimum)",
-        "%.1f mg/L minimum" % p["residual_chlorine_mgl"]["acceptable"][0],
-        "%.1f mg/L minimum" % p["residual_chlorine_mgl"]["permissible"][0], "mg/L",
-        "IS 10500:2012, Cl. 6.1, excerpt - process-control minimum, not a health standard")
-    add("water", "Total coliform", "Absent in 100 mL", "Absent in 100 mL", "present/absent",
-        "IS 10500:2012, Table 1, excerpt - verify")
     with open(os.path.join(ROOT, "config", "aqi.json"), encoding="utf-8") as fh:
-        aqi = json.load(fh)
-    add("air", "PM10 (24 h)", "100", "350", "ug/m3",
-        "CPCB NAQI 2017, breakpoint table - demo excerpt, verify")
-    add("air", "PM2.5 (24 h)", "60", "120", "ug/m3",
-        "CPCB NAQI 2017, breakpoint table - demo excerpt, verify")
-    add("air", "NO2 (24 h)", "80", "280", "ug/m3",
-        "CPCB NAQI 2017, breakpoint table - demo excerpt, verify")
-    add("air", "SO2 (24 h)", "80", "380", "ug/m3",
-        "CPCB NAQI 2017, breakpoint table - demo excerpt, verify")
-    add("air", "CO (8 h)", "1.7", "9.0", "mg/m3",
-        "CPCB NAQI 2017, breakpoint table - demo excerpt, verify")
-    add("air", "O3 (8 h)", "100", "180", "ug/m3",
-        "CPCB NAQI 2017, breakpoint table - demo excerpt, verify")
-    add("land", "Segregation and no public dumping", "Source segregation mandatory",
-        "No dumping on any public place, drain or water body", "-",
-        "SWM Rules 2016, Rule 4 - demo excerpt, verify")
-    add("land", "Removal of unauthorised dump", "Lift within 48 h",
-        "Spot action and reinstated collection route", "days",
-        "SWM Rules 2016, Rules 15-16 - demo excerpt, verify")
-    conn.executemany("INSERT INTO standards(id, domain, parameter, acceptable,"
-                     " permissible, unit, citation) VALUES (?,?,?,?,?,?,?)", rows)
-    return len(rows)
+        aqi_cfg = json.load(fh)
+    standards_mod.sync(conn, limits, aqi_cfg)
+    return conn.execute("SELECT COUNT(*) AS n FROM standards").fetchone()["n"]
 
 
 def build_features(conn):

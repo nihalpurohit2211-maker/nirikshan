@@ -5,6 +5,8 @@ writes, no network. `load_graph` is the ONLY place that touches the DB and it
 does it in three bulk queries (§2 rule 1: no N+1).
 """
 
+from backend.forecast import REFERENCE_YEAR  # §6.3: pipe age is measured against 2026
+
 PLANT_TYPES = ("treatment_plant",)
 ROOT_TYPES = ("source", "treatment_plant")
 
@@ -138,7 +140,7 @@ def trace_with_pipes(node_id, parent, nodes, pipes_by_to):
                 "diameter_mm": pipe["diameter_mm"],
                 "material": pipe["material"],
                 "install_year": pipe["install_year"],
-                "age_years": 2026 - pipe["install_year"] if pipe["install_year"] else None,
+                "age_years": REFERENCE_YEAR - pipe["install_year"] if pipe["install_year"] else None,
             },
         })
     return steps
