@@ -658,3 +658,24 @@ button, .btn, .ghost { border-radius: 10px; }
 }
 .col.is-zero .col-val { color: #b3aa9c; font-weight: 500; }
 .col-lab { font-size: 9px; text-align: center; color: var(--muted); white-space: nowrap; }
+
+/* the three domains, side by side instead of three identical full-width rows */
+.domain-strip {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
+  gap: 1px; margin-bottom: 18px; overflow: hidden;
+  background: var(--line); border: 1px solid var(--line); border-radius: 18px;
+}
+.domain-cell { display: grid; gap: 11px; padding: 17px 19px 18px; background: var(--surface); }
+.domain-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.domain-name {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .13em;
+  text-transform: uppercase; color: #8a8177;
+}
+.domain-metric { font-size: 11px; color: var(--muted); text-align: right; }
+.domain-figs { display: flex; gap: 24px; }
+.domain-n {
+  display: block; font-size: 30px; font-weight: 700; line-height: 1;
+  letter-spacing: -.035em; color: var(--forest); font-variant-numeric: tabular-nums;
+}
+.domain-u { font-size: 11px; color: var(--muted); }
+.domain-tags { display: flex; gap: 6px; flex-wrap: wrap; min-height: 20px; }

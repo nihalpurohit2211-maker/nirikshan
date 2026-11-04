@@ -483,27 +483,32 @@
         var overview = out[0], cases = out[1].cases, complaints = out[2].complaints;
         NIRI.clear(host);
 
-        /* one KPI row per domain — counts of served rows, nothing derived */
-        ['water', 'air', 'land'].forEach(function (domain) {
+        /* one column per domain — counts of served rows, nothing derived */
+        var domainCells = ['water', 'air', 'land'].map(function (domain) {
           var inDomain = cases.filter(function (c) { return c.domain === domain; });
           var rows = complaints.filter(function (c) { return c.domain === domain; });
-          var host2 = el('div', { class: 'card tight' }, [
-            el('div', { class: 'row', style: 'gap:14px;align-items:center' }, [
-              el('strong', { text: domain }),
-              NIRI.badge(inDomain.length + ' cases', inDomain.length ? 'plain' : 'low'),
-              NIRI.badge(rows.length + ' reports', 'plain'),
-              el('span', { class: 'small muted', text: inDomain.length
-                ? 'severities here: ' + severities(inDomain).join(', ')
-                : 'no case open in this domain' }),
-              el('span', { style: 'margin-left:auto' }, domain === 'water'
-                ? NIRI.badge('triage ' + overview.triage.filter(function (t) { return t.domain === 'water'; }).length, 'plain')
-                : domain === 'air' ? NIRI.badge('NAQI ' + (overview.kpis.worst_aqi
-                                          ? overview.kpis.worst_aqi.value : '—'), 'plain')
-                                  : NIRI.badge(out[4].count + ' sites', 'plain'))
-            ])
+          var metric = domain === 'water'
+            ? overview.triage.filter(function (t) { return t.domain === 'water'; }).length + ' in triage'
+            : domain === 'air'
+              ? 'worst NAQI ' + (overview.kpis.worst_aqi ? overview.kpis.worst_aqi.value : '—')
+              : out[4].count + ' sites';
+          return el('div', { class: 'domain-cell' }, [
+            el('div', { class: 'domain-top' }, [
+              el('span', { class: 'domain-name', text: domain }),
+              el('span', { class: 'domain-metric', text: metric })
+            ]),
+            el('div', { class: 'domain-figs' }, [
+              el('div', {}, [el('span', { class: 'domain-n', text: String(inDomain.length) }),
+                             el('span', { class: 'domain-u', text: 'cases' })]),
+              el('div', {}, [el('span', { class: 'domain-n', text: String(rows.length) }),
+                             el('span', { class: 'domain-u', text: 'reports' })])
+            ]),
+            el('div', { class: 'domain-tags' }, inDomain.length
+              ? severities(inDomain).map(function (s) { return NIRI.badge(s, 'plain'); })
+              : [el('span', { class: 'small muted', text: 'no case open here' })])
           ]);
-          host.appendChild(host2);
         });
+        host.appendChild(el('section', { class: 'domain-strip' }, domainCells));
 
         /* reports per day: counted from the served timestamps, never modelled */
         var dayKey = function (d) {
