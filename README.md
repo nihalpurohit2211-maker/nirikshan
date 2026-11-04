@@ -53,7 +53,7 @@ primary, fully offline demo.
 
 ```bash
 PY seed.py && PY verify_seed.py                     # 31 checks, 0 failures
-PY -m unittest discover -s backend/tests            # Ran 93 tests ... OK
+PY -m unittest discover -s backend/tests            # Ran 95 tests ... OK
 PY -m uvicorn backend.app:app --port 8000           # API + UI serve from one process
 PY rehearse_demo.py                                 # 17/17 beats, exit 0, on the running server
 ```
@@ -124,7 +124,7 @@ backend/agent.py         provider-agnostic drafting; deterministic offline templ
 backend/ask.py           offline evidence answer: readings + standards + open cases, with citations
 backend/db.py            sqlite access, one bulk read per screen (no N+1)
 backend/app.py           FastAPI app: 21 paths, static UI mount, error envelope, X-Request-Id
-backend/tests/           93 tests against a temp copy of the seeded DB on a free test port
+backend/tests/           95 tests against a temp copy of the seeded DB on a free test port
 
 frontend_fallback/index.html      the app shell: nav, banner, footer, panel overlay, role chip, ask FAB
 frontend_fallback/app.css         design tokens, tables, split rail — no CSS framework

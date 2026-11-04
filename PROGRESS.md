@@ -528,3 +528,19 @@ Verified in headless Chrome: 5 cells + 5 plates render; Water/Air/Complaints/All
 switch the stat text and the right markers; clicking Ward 4 selects it, shows the filter
 chip and filters the triage table to 2 rows; 0 JS errors; the 11-route sweep at 1366 and
 1024 is still clean with 0 horizontal overflow. Recorded in `docs/PHASE2_VISUAL_PASS.md`.
+
+### Hosted AI key names (`fix/llm-key-aliases`)
+
+The hosted demo stayed on the offline answer even with a Gemini key in Render. The
+provider selection only read `LLM_API_KEY`, so a key saved under the name AI Studio
+hands out looked like no key at all. `backend/agent.py` now accepts the documented name
+first, then the provider-specific aliases:
+
+- Gemini: `LLM_API_KEY`, `GEMINI_API_KEY`, `GOOGLE_API_KEY`
+- OpenAI-compatible: `LLM_API_KEY`, `OPENAI_API_KEY`
+
+The first non-empty value wins, so existing deployments keep working. The selection
+tests cover the alias and the precedence. `docs/DEPLOY.md` now documents the live-model
+variables and what `/api/health` and `/api/ask` report when the provider is online.
+
+`PY -m unittest discover -s backend/tests` -> **95 tests, OK** .

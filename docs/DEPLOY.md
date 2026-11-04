@@ -58,19 +58,37 @@ The image installs `requirements.txt`, copies the repo, seeds the database at st
 binds `0.0.0.0:$PORT` (default 8000). It works on Fly.io, Koyeb, Railway, Hugging Face
 Spaces (Docker SDK) and similar.
 
+## Live model (optional)
+
+The app is offline by default and never needs a key. To let the hosted copy answer with
+a real model, set these in **Render → Environment** (never in the repo):
+
+| Variable | Value |
+| --- | --- |
+| `LLM_PROVIDER` | `gemini` |
+| `LLM_API_KEY` | your Gemini API key |
+| `LLM_MODEL` | optional; defaults to `gemini-2.5-flash` |
+| `LLM_BASE_URL` | optional; defaults to the Gemini endpoint |
+
+`GEMINI_API_KEY` and `GOOGLE_API_KEY` are accepted as aliases for `LLM_API_KEY`, so either
+name works. Save the variables and wait for the service to restart.
+
 ## Verification after deploy
 
 ```bash
 curl -s https://<service>/api/health
-# {"status":"ok","demo_now":"2026-11-03 09:00:00", ... ,"ai":"offline"}
+# {"status":"ok","demo_now":"2026-11-03 09:00:00", ... ,"ai":"online"}
 curl -s https://<service>/api/overview | head -c 300
 curl -s -X POST https://<service>/api/ask \
   -H 'content-type: application/json' \
   -d '{"question":"Why is Ward 3 unsafe?"}'
 ```
 
-The last call should return the offline answer naming Ward 3, WQI 94.4 Unsafe, and
-citations of kind `doc`, `case` and `node`.
+With a key configured, `/api/health` reports `"ai":"online"` and `/api/ask` answers with
+`"provider":"gemini"`. Without a key (or after a provider failure) both report `offline`
+and the deterministic answer still names Ward 3, WQI 94.4 Unsafe, with citations of kind
+`doc`, `case` and `node`. A failed call flips the badge to `offline` until one call
+succeeds again; check the Render logs for the provider error if it stays there.
 
 ## Honest trade-off
 

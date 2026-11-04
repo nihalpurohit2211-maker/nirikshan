@@ -53,7 +53,7 @@ $ PY verify_seed.py | tail -1
 31 checks, 0 failures
 
 $ PY -m unittest discover -s backend/tests | tail -2
-Ran 93 tests in ~5s
+Ran 95 tests in ~5s
 OK
 
 $ PY -m unittest discover -s backend/tests -p test_ask.py | tail -2
@@ -185,7 +185,7 @@ backend/ask.py          offline evidence answer: readings + standards + open cas
 backend/db.py           sqlite access, one bulk read per screen (no N+1 anywhere)
 backend/app.py          FastAPI app: 21 paths, the {"detail": …} envelope, X-Request-Id on every
                         response, static mount of the UI, demo clock = MAX(readings.timestamp)
-backend/tests/          93 tests on a free port against a temp copy of the seeded DB
+backend/tests/          95 tests on a free port against a temp copy of the seeded DB
 ```
 
 ### Frontend — `frontend_fallback/`, the whole UI, plain ES5 + SVG
