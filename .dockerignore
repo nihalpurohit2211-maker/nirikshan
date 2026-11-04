@@ -1,0 +1,11 @@
+.git
+.venv
+__pycache__
+*.pyc
+*.log
+nirikshan.db
+nirikshan.db-*
+frontend
+docs/FRONTEND_SPEC.md
+docs/openapi.json
+data/images/upload_*

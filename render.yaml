@@ -1,0 +1,19 @@
+# Render blueprint — deploys the API and the UI as one Python web service.
+# The app is same-origin: FastAPI serves /api/* and the static UI from frontend_fallback/.
+services:
+  - type: web
+    name: nirikshan
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: pip install -r requirements.txt
+    # Render's disk is ephemeral, so rebuild the deterministic demo city on every boot.
+    # The app then opens on the frozen demo clock with the contracted numbers.
+    startCommand: python seed.py && python -m uvicorn backend.app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.10"
+      - key: LLM_PROVIDER
+        value: offline

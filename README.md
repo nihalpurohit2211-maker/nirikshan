@@ -39,7 +39,15 @@ the demo role picker; pick **Officer** for the full desk, or open
 `http://127.0.0.1:8000/#/?role=officer` to skip the picker. On Linux use `./.venv/bin/python`.
 
 Nothing else is required. The three pinned packages are the only dependencies; the rest is
-the standard library.
+the standard library. They are also pinned in `requirements.txt` for hosting.
+
+### Optional: run it hosted
+
+The same process can be deployed to a container host or Render; `render.yaml` and
+`Dockerfile` are in the repo. This does not change the code or the data — the synthetic
+seed and the offline agent are identical. See `docs/DEPLOY.md` for the hosted path, the
+free-plan sleep/disk behaviour, and the post-deploy checks. Local `uvicorn` remains the
+primary, fully offline demo.
 
 ## Definition of done (all four pass)
 
@@ -97,6 +105,9 @@ verify_seed.py          31 assertions that the seed still produces the contracte
 rehearse_demo.py        the demo path walked over HTTP against a live server (17 beats)
 make_frontend_spec.py   generates docs/FRONTEND_SPEC.md + docs/openapi.json from the running
                         server, and asserts 21 data-coverage rows before it writes
+requirements.txt        the three pinned dependencies (used by the hosted build)
+Dockerfile              container path: install, seed at boot, bind 0.0.0.0:$PORT
+render.yaml             Render Blueprint: free Python web service + health check
 
 config/limits.json      IS 10500 ideal / acceptable / permissible values + WQI weights
 config/aqi.json         NAQI sub-index breakpoints and category bounds
@@ -137,6 +148,7 @@ docs/swm_rules_excerpt.txt      the solid-waste rules, transcribed
 docs/FRONTEND_SPEC.md           the UI specification, generated from the live server
 docs/openapi.json               the API contract, generated from the live server
 docs/PHASE2_VISUAL_PASS.md      the visual-first pass: scope, routes, gates, fixes, limitations
+docs/DEPLOY.md                  optional hosted path, free-plan behaviour, post-deploy checks
 ```
 
 `frontend/` was the React polish layer in `PLAN.md` §9. It was deliberately not built — and
