@@ -341,10 +341,24 @@ window.NIRI = window.NIRI || {};
       applyLayers();
     }
 
+    /* Anything that shows the zoom level subscribes here, so the panel readout and
+       the canvas can never disagree. */
+    var viewListeners = [];
+    function notifyView() {
+      viewListeners.forEach(function (fn) { fn(view.scale); });
+    }
+
     function zoom(factor) {
       view.scale = Math.max(1, Math.min(6, view.scale * factor));
       if (view.scale === 1) view.x = 0, view.y = 0;
       pan.setAttribute('transform', 'translate(' + view.x + ' ' + view.y + ') scale(' + view.scale + ')');
+      notifyView();
+    }
+
+    function resetView() {
+      view.scale = 1; view.x = 0; view.y = 0;
+      pan.removeAttribute('transform');
+      notifyView();
     }
 
     /* Drag to pan, wheel to zoom — plain handlers, no library. */
@@ -376,113 +390,197 @@ window.NIRI = window.NIRI || {};
     if (!cfg.preview) host.appendChild(tip);
 
     if (!cfg.preview) {
-      /* One compact toolbar. The layer switches live in a dropdown rather than on
-         the canvas: four open checkboxes covered a third of the map. */
-      function layerToggle(key, label) {
-        return el('label', { class: 'map-layer-row' }, [
-          el('input', { type: 'checkbox', checked: layers[key] ? true : null,
-                        on: { change: function (ev) {
-                          layers[key] = ev.target.checked;
-                          applyLayers();
-                        } } }),
-          el('span', { text: label })
+      var airCount = nodes.filter(function (n) { return n.type === 'air_station'; }).length;
+      var landCount = nodes.filter(function (n) { return n.type === 'land_site'; }).length;
+      var bandCounts = {};
+      nodes.forEach(function (n) { if (n.wqi) bandCounts[n.wqi.band] = (bandCounts[n.wqi.band] || 0) + 1; });
+
+      /* One switch row serves the panel and the floating toolbar, so a layer can only
+         ever be wired in one place. */
+      function switchRow(label, count, checked, onChange) {
+        var input = el('input', { type: 'checkbox', checked: checked ? true : null });
+        var row = el('label', { class: 'map-switch' + (checked ? ' is-on' : '') }, [
+          input,
+          el('span', { class: 'map-switch-track', 'aria-hidden': 'true' }, el('i')),
+          el('span', { class: 'map-switch-label', text: label }),
+          el('span', { class: 'map-switch-count',
+                       text: count === null || count === undefined ? '' : String(count) })
+        ]);
+        input.addEventListener('change', function () {
+          row.classList.toggle('is-on', input.checked);
+          onChange(input.checked);
+        });
+        return row;
+      }
+
+      function layerSwitch(key, label, count) {
+        return switchRow(label, count, !!layers[key], function (on) {
+          layers[key] = on;
+          applyLayers();
+        });
+      }
+
+      function bandRow(band) {
+        return el('div', { class: 'map-band-row' }, [
+          el('span', { class: 'map-band-sw', style: 'background:' + BAND_FILL[band] }),
+          el('span', { class: 'map-band-name', text: band }),
+          el('b', { class: 'map-band-count', text: String(bandCounts[band] || 0) })
         ]);
       }
-      var controls = el('div', { class: 'map-controls' }, [
-        el('div', { class: 'map-toolbar' }, [
-          el('button', { class: 'chip', text: '+', title: 'Zoom in',
-                         on: { click: function () { zoom(1.3); } } }),
-          el('button', { class: 'chip', text: '−', title: 'Zoom out',
-                         on: { click: function () { zoom(1 / 1.3); } } }),
-          el('button', { class: 'chip ghost', text: 'reset', title: 'Reset the view',
-                         on: { click: function () {
-                           view.scale = 1; view.x = 0; view.y = 0;
-                           pan.removeAttribute('transform');
-                         } } })
-        ]),
-        el('details', { class: 'map-layers' }, [
-          el('summary', { class: 'chip', text: 'Layers' }),
-          el('div', { class: 'map-layers-body' }, [
-            el('p', { class: 'map-layers-title', text: 'show on the map' }),
-            layerToggle('pipes', 'pipes'),
-            layerToggle('air', 'air stations'),
-            layerToggle('land', 'land sites'),
-            layerToggle('labels', 'labels'),
-            el('label', { class: 'map-layer-row' }, [
-              el('input', { type: 'checkbox', checked: true,
-                            on: { change: function (ev) {
-                              heatLayer.classList.toggle('off', !ev.target.checked);
-                            } } }),
-              el('span', { text: 'quality field' })
+
+      function layerGroup() {
+        return el('div', { class: 'map-panel-group map-layers-body' }, [
+          el('p', { class: 'map-panel-label', text: 'Layers' }),
+          layerSwitch('pipes', 'Pipes', pipes.length),
+          layerSwitch('air', 'Air stations', airCount),
+          layerSwitch('land', 'Land sites', landCount),
+          layerSwitch('labels', 'Node labels', null),
+          switchRow('Quality field', null, !heatLayer.classList.contains('off'), function (on) {
+            heatLayer.classList.toggle('off', !on);
+          })
+        ]);
+      }
+
+      if (cfg.panelHost) {
+        /* The map page puts its controls in the rail beside the canvas: a tool panel
+           with room to label, group and count, instead of pills sitting on the map. */
+        var zoomLevel = el('span', { class: 'map-zoom-level mono', text: '100%' });
+        viewListeners.push(function (scale) {
+          zoomLevel.textContent = Math.round(scale * 100) + '%';
+        });
+        var panel = el('section', { class: 'card map-panel' }, [
+          el('div', { class: 'map-panel-head' }, [
+            el('h3', { text: 'Map tools' }),
+            el('span', { class: 'map-panel-note', text: 'applies live' })
+          ]),
+          el('div', { class: 'map-panel-group' }, [
+            el('p', { class: 'map-panel-label', text: 'View' }),
+            el('div', { class: 'map-zoom' }, [
+              el('button', { class: 'map-panel-btn', type: 'button', text: '−',
+                             title: 'Zoom out', 'aria-label': 'Zoom out',
+                             on: { click: function () { zoom(1 / 1.3); } } }),
+              zoomLevel,
+              el('button', { class: 'map-panel-btn', type: 'button', text: '+',
+                             title: 'Zoom in', 'aria-label': 'Zoom in',
+                             on: { click: function () { zoom(1.3); } } }),
+              el('button', { class: 'map-panel-btn ghost map-zoom-reset', type: 'button',
+                             text: 'Reset', title: 'Reset the pan and zoom',
+                             on: { click: resetView } })
+            ])
+          ]),
+          layerGroup(),
+          el('div', { class: 'map-panel-group' }, [
+            el('p', { class: 'map-panel-label', text: 'Served WQI bands' }),
+            ['Good', 'Acceptable', 'Poor', 'Unsafe'].map(bandRow),
+            el('div', { class: 'map-band-row is-muted' }, [
+              el('span', { class: 'map-band-sw', style: 'background:' + NO_WQI }),
+              el('span', { class: 'map-band-name', text: 'no sensor' }),
+              el('b', { class: 'map-band-count', text: '—' })
+            ])
+          ]),
+          el('p', { class: 'map-panel-foot' }, 'node colour is the served WQI band · ',
+            el('span', { class: 'mono', text: nodes.length + ' nodes · ' + pipes.length + ' pipes' }))
+        ]);
+        cfg.panelHost.appendChild(panel);
+      } else {
+        /* Floating controls for embedded use. The map page uses the panel above. */
+        function layerToggle(key, label) {
+          return el('label', { class: 'map-layer-row' }, [
+            el('input', { type: 'checkbox', checked: layers[key] ? true : null,
+                          on: { change: function (ev) {
+                            layers[key] = ev.target.checked;
+                            applyLayers();
+                          } } }),
+            el('span', { text: label })
+          ]);
+        }
+        var controls = el('div', { class: 'map-controls' }, [
+          el('div', { class: 'map-toolbar' }, [
+            el('button', { class: 'chip', text: '+', title: 'Zoom in',
+                           on: { click: function () { zoom(1.3); } } }),
+            el('button', { class: 'chip', text: '−', title: 'Zoom out',
+                           on: { click: function () { zoom(1 / 1.3); } } }),
+            el('button', { class: 'chip ghost', text: 'reset', title: 'Reset the view',
+                           on: { click: resetView } })
+          ]),
+          el('details', { class: 'map-layers' }, [
+            el('summary', { class: 'chip', text: 'Layers' }),
+            el('div', { class: 'map-layers-body' }, [
+              el('p', { class: 'map-layers-title', text: 'show on the map' }),
+              layerToggle('pipes', 'pipes'),
+              layerToggle('air', 'air stations'),
+              layerToggle('land', 'land sites'),
+              layerToggle('labels', 'labels'),
+              el('label', { class: 'map-layer-row' }, [
+                el('input', { type: 'checkbox', checked: true,
+                              on: { change: function (ev) {
+                                heatLayer.classList.toggle('off', !ev.target.checked);
+                              } } }),
+                el('span', { text: 'quality field' })
+              ])
             ])
           ])
-        ])
-      ]);
-      /* Collapsed by default: an open two-hundred-pixel legend sat on top of Ward 5.
-         The summary pill is one click away and the map stays readable. */
-      var legend = el('details', { class: 'map-legend' }, [
-        el('summary', { text: 'Legend' }),
-        el('div', { class: 'map-legend-body' }, [
-          el('strong', { text: 'Water quality band' }),
-          el('div', { style: 'margin:6px 0' }, ['Good', 'Acceptable', 'Poor', 'Unsafe'].map(function (band) {
-            return el('div', { class: 'k' }, [
-              el('span', { class: 'sw', style: 'background:' + BAND_FILL[band] }), band,
-              el('span', { class: 'muted', text: ' ' + NIRI.BANDS[band] })
+        ]);
+        var legend = el('details', { class: 'map-legend' }, [
+          el('summary', { text: 'Legend' }),
+          el('div', { class: 'map-legend-body' }, [
+            el('strong', { text: 'Water quality band' }),
+            el('div', { style: 'margin:6px 0' }, ['Good', 'Acceptable', 'Poor', 'Unsafe'].map(function (band) {
+              return el('div', { class: 'k' }, [
+                el('span', { class: 'sw', style: 'background:' + BAND_FILL[band] }), band,
+                el('span', { class: 'muted', text: ' · ' + (bandCounts[band] || 0) + ' nodes' })
+              ]);
+            })),
+            el('div', { class: 'k' }, [el('span', { class: 'sw', style: 'background:' + NO_WQI }),
+                                       'node, no sensor']),
+            el('div', { class: 'k' }, [el('span', { class: 'sw',
+                style: 'background:' + AIR_FILL + ';transform:rotate(45deg);border-radius:2px' }), 'air station']),
+            el('div', { class: 'k' }, [el('span', { class: 'sw',
+                style: 'background:' + LAND_FILL + ';border-radius:2px' }), 'land site']),
+            el('p', { class: 'muted', style: 'margin:8px 0 0;font-size:11.5px' },
+              'Pipe thickness ∝ log(diameter). The quality field is interpolated from the'
+              + ' served WQI colours, not re-banded here. On a trace, a higher decay k'
+              + ' means a worse section.')
+          ])
+        ]);
+        var KM_PER_UNIT = ((bounds.maxLon - bounds.minLon) * 111.32
+                           * Math.cos(19 * Math.PI / 180)) / W;
+        var scaleKm = KM_PER_UNIT * W > 20 ? 10 : 5;
+        var coords = el('div', { class: 'map-coords mono', text: 'lon — · lat —' });
+        surface.addEventListener('pointermove', function (ev) {
+          var box = surface.getBoundingClientRect();
+          var x = (ev.clientX - box.left) * (W / box.width);
+          var y = (ev.clientY - box.top) * (H / box.height);
+          var lon = bounds.minLon + (x - W * pad) / sx;
+          var lat = bounds.maxLat - (y - H * pad) / sy;
+          coords.textContent = 'lon ' + lon.toFixed(4) + ' · lat ' + lat.toFixed(4);
+        });
+        var mix = el('div', { class: 'map-mix' }, ['Good', 'Acceptable', 'Poor', 'Unsafe']
+          .map(function (band) {
+            return el('div', { class: 'map-mix-row' }, [
+              el('span', { class: 'sw', style: 'background:' + BAND_FILL[band] }),
+              el('span', { class: 'map-mix-label', text: band }),
+              el('b', { text: String(bandCounts[band] || 0) })
             ]);
-          })),
-          el('div', { class: 'k' }, [el('span', { class: 'sw', style: 'background:' + NO_WQI }),
-                                     'node, no sensor']),
-          el('div', { class: 'k' }, [el('span', { class: 'sw',
-              style: 'background:' + AIR_FILL + ';transform:rotate(45deg);border-radius:2px' }), 'air station']),
-          el('div', { class: 'k' }, [el('span', { class: 'sw',
-              style: 'background:' + LAND_FILL + ';border-radius:2px' }), 'land site']),
-          el('p', { class: 'muted', style: 'margin:8px 0 0;font-size:11.5px' },
-            'Pipe thickness ∝ log(diameter). The quality field is interpolated from the'
-            + ' served WQI colours, not re-banded here. On a trace, a higher decay k'
-            + ' means a worse section.')
-        ])
-      ]);
-      /* map chrome: scale, orientation, live coordinates, band mix */
-      var KM_PER_UNIT = ((bounds.maxLon - bounds.minLon) * 111.32
-                         * Math.cos(19 * Math.PI / 180)) / W;
-      var scaleKm = KM_PER_UNIT * W > 20 ? 10 : 5;
-      var coords = el('div', { class: 'map-coords mono', text: 'lon — · lat —' });
-      surface.addEventListener('pointermove', function (ev) {
-        var box = surface.getBoundingClientRect();
-        var x = (ev.clientX - box.left) * (W / box.width);
-        var y = (ev.clientY - box.top) * (H / box.height);
-        var lon = bounds.minLon + (x - W * pad) / sx;
-        var lat = bounds.maxLat - (y - H * pad) / sy;
-        coords.textContent = 'lon ' + lon.toFixed(4) + ' · lat ' + lat.toFixed(4);
-      });
-      var bands = {};
-      nodes.forEach(function (n) { if (n.wqi) bands[n.wqi.band] = (bands[n.wqi.band] || 0) + 1; });
-      var mix = el('div', { class: 'map-mix' }, ['Good', 'Acceptable', 'Poor', 'Unsafe']
-        .map(function (band) {
-          var row = el('div', { class: 'map-mix-row' }, [
-            el('span', { class: 'sw', style: 'background:' + BAND_FILL[band] }),
-            el('span', { class: 'map-mix-label', text: band }),
-            el('b', { text: String(bands[band] || 0) })
-          ]);
-          return row;
-        }));
-      host.appendChild(controls);
-      host.appendChild(legend);
-      host.appendChild(el('div', { class: 'map-chrome' }, [
-        el('div', { class: 'map-compass', title: 'north is up' }, [
-          el('span', { class: 'map-compass-n', text: 'N' }),
-          el('span', { class: 'map-compass-arrow', text: '↑' })
-        ]),
-        el('div', { class: 'map-scale' }, [
-          el('div', { class: 'map-scale-bar',
-                      style: 'width:' + Math.round((scaleKm / KM_PER_UNIT) / W * 100) + '%' }),
-          el('span', { class: 'mono', text: scaleKm + ' km' })
-        ]),
-        coords
-      ]));
-      host.appendChild(el('div', { class: 'map-bands' }, [
-        el('span', { class: 'map-bands-label', text: 'served bands' }), mix
-      ]));
+          }));
+        host.appendChild(controls);
+        host.appendChild(legend);
+        host.appendChild(el('div', { class: 'map-chrome' }, [
+          el('div', { class: 'map-compass', title: 'north is up' }, [
+            el('span', { class: 'map-compass-n', text: 'N' }),
+            el('span', { class: 'map-compass-arrow', text: '↑' })
+          ]),
+          el('div', { class: 'map-scale' }, [
+            el('div', { class: 'map-scale-bar',
+                        style: 'width:' + Math.round((scaleKm / KM_PER_UNIT) / W * 100) + '%' }),
+            el('span', { class: 'mono', text: scaleKm + ' km' })
+          ]),
+          coords
+        ]));
+        host.appendChild(el('div', { class: 'map-bands' }, [
+          el('span', { class: 'map-bands-label', text: 'served bands' }), mix
+        ]));
+      }
     }
 
     applyLayers();
@@ -500,6 +598,7 @@ window.NIRI = window.NIRI || {};
         view.x = W / 2 - xy[0] * view.scale;
         view.y = H / 2 - xy[1] * view.scale;
         pan.setAttribute('transform', 'translate(' + view.x + ' ' + view.y + ') scale(' + view.scale + ')');
+        notifyView();
         select(id);
       }
     };
