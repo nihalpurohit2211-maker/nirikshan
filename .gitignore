@@ -1,0 +1,7 @@
+nirikshan.db
+__pycache__/
+node_modules/
+.venv/
+server.log
+dist/
+*.pyc

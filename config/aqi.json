@@ -1,0 +1,20 @@
+{
+  "categories": [
+    {"name": "Good",         "min": 0,   "max": 50,   "colour": "#34A853"},
+    {"name": "Satisfactory", "min": 51,  "max": 100,  "colour": "#A8D08D"},
+    {"name": "Moderate",     "min": 101, "max": 200,  "colour": "#F4B400"},
+    {"name": "Poor",         "min": 201, "max": 300,  "colour": "#FBBC04"},
+    {"name": "Very Poor",    "min": 301, "max": 400,  "colour": "#EA4335"},
+    {"name": "Severe",       "min": 401, "max": 500,  "colour": "#9B1C1C"}
+  ],
+  "index_bounds": [0, 50, 100, 200, 300, 400, 500],
+  "pm25_24h_breakpoints":   [0, 30, 60, 90, 120, 250],
+  "pm10_24h_breakpoints":   [0, 50, 100, 250, 350, 430],
+  "no2_24h_breakpoints":    [0, 40, 80, 180, 280, 400],
+  "so2_24h_breakpoints":    [0, 40, 80, 380, 800, 1600],
+  "o3_8h_breakpoints":      [0, 20, 40, 70, 120, 180],
+  "co_8h_breakpoints":      [0.6, 1.7, 4.5, 9.0, 15.0, 30.0],
+  "units": {"PM2.5": "µg/m³", "PM10": "µg/m³", "NO2": "µg/m³", "SO2": "µg/m³", "O3": "µg/m³", "CO": "mg/m³"},
+  "pollutants": ["PM2.5", "PM10", "NO2", "SO2", "CO", "O3"],
+  "_note": "NO2/SO2/CO/O3 breakpoints: demo excerpt - verify against CPCB. See docs/cpcb_aqi_excerpt.txt."
+}

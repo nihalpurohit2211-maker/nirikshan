@@ -1,0 +1,20 @@
+CPCB — National Ambient Air Quality Index (NAQI), 2017
+Excerpt bundled for offline demo use. DEMO EXCERPT — VERIFY AGAINST CPCB.
+
+AQI CATEGORY RANGES
+ 0 – 50    Good          201 – 300   Poor
+ 51 – 100  Satisfactory  301 – 400   Very Poor
+101 – 200  Moderate      401 – 500   Severe
+
+SUB-INDEX BREAKPOINTS — concentration at AQI 0, 50, 100, 200, 300, 400
+ PM10  (24 h, µg/m³)   0,    50,  100, 250, 350, 430   [confirmed from NAQI table]
+ PM2.5 (24 h, µg/m³)   0,    30,   60,  90, 120, 250   [confirmed from NAQI table]
+ NO2  (24 h, µg/m³)    0,    40,   80, 180, 280, 400   [demo excerpt — verify against CPCB]
+ SO2  (24 h, µg/m³)    0,    40,   80, 380, 800, 1600  [demo excerpt — verify against CPCB]
+ O3   (8 h, µg/m³)     0,    20,   40,  70, 120, 180   [demo excerpt — verify against CPCB]
+ CO   (8 h, mg/m³)     0.6,  1.7,  4.5,  9.0, 15.0, 30.0 [demo excerpt — verify against CPCB]
+
+Interpolation: AQI_p = I_low + (C − B_low) × (I_high − I_low) / (B_high − B_low)
+Overall AQI = max(sub-index over pollutants); the max contributor is the
+"driving pollutant". Concentrations above the last breakpoint are clamped to 500.
+VERIFY AGAINST THE OFFICIAL DOCUMENT

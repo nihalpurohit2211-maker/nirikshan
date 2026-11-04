@@ -1,0 +1,20 @@
+IS 10500:2012 — Drinking Water (Part 1) General Requirements for Potability
+Excerpt bundled for offline demo use. "acceptable" = conforming quality;
+"permissible" = only when no alternative source is available (confirmed by the
+public health authority).
+
+PARAMETER                  ACCEPTABLE          PERMISSIBLE        UNIT
+pH                          6.5 – 8.5           6.5 – 8.5          —   (no relaxation)
+Turbidity                   1.0                 5.0                NTU
+Total Dissolved Solids      500                 2000               mg/L
+Residual chlorine (min.)    0.2                 0.2                mg/L  (process control)
+Total coliform              Absent in 100 mL    Absent in 100 mL   present/absent
+E. coli                     Absent in 100 mL    Absent in 100 mL   present/absent
+Iron                        0.3                 1.0                mg/L
+Hardness (as CaCO3)         200                 600                mg/L
+Fluoride                    1.0                 1.5                mg/L
+Nitrate (as N)              45                  50                 mg/L
+Arsenic                     0.01                0.01               mg/L
+
+Citation format used in-app: "IS 10500:2012, Table 1/2, excerpt — verify".
+VERIFY AGAINST THE OFFICIAL DOCUMENT

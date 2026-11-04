@@ -1,0 +1,33 @@
+{
+  "clustering": {
+    "window_hours": 24,
+    "min_buildings_for_municipal_case": 3,
+    "min_complaints_for_any_case": 2,
+    "land_proximity_m": 500,
+    "sibling_normal_tolerance": {"turbidity_ntu_max": 1.0, "chlorine_mgl_min": 0.2}
+  },
+  "severity": {
+    "High": "permissible-limit breach OR coliform present OR 5+ buildings affected",
+    "Medium": "acceptable-limit breach OR 3-4 buildings affected",
+    "Low": "single building, no sensor breach",
+    "Emergency": "supply loss / pipe burst"
+  },
+  "forecast": {
+    "horizon_hours": 24,
+    "chlorine_minimum_mgl": 0.2,
+    "method": "first-order decay C_out = C_in * exp(-k * t); k grows with pipe age and smaller diameter"
+  },
+  "anomaly": {"z_threshold": 2.5, "method": "z-score vs same hour-of-day over 14 days"},
+  "escalation": {"enabled": true, "high_severity_no_action_hours": 2},
+  "land_proximity": {
+    "school_m": 300,
+    "water_body_m": 200,
+    "main_road_m": 150,
+    "w_school": 30,
+    "w_water": 30,
+    "w_road": 20,
+    "w_duration_days": 7,
+    "w_duration": 20,
+    "cap": 100
+  }
+}

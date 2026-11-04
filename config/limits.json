@@ -1,0 +1,16 @@
+{
+  "parameters": {
+    "ph":              {"ideal": 7.0,  "acceptable": [6.5, 8.5], "permissible": [6.5, 8.5], "unit": "", "weight": 0.15, "note": "no relaxation"},
+    "turbidity_ntu":   {"ideal": 0.0,  "acceptable": 1.0,        "permissible": 5.0,        "unit": "NTU", "weight": 0.25, "note": "5 NTU only when no alternative source"},
+    "tds_mgl":         {"ideal": 0.0,  "acceptable": 500.0,      "permissible": 2000.0,     "unit": "mg/L", "weight": 0.15},
+    "residual_chlorine_mgl": {"ideal": 0.5, "acceptable": [0.2, null], "permissible": [0.2, null], "unit": "mg/L", "weight": 0.25, "note": "process-control minimum, not a health standard"},
+    "coliform":        {"ideal": 0.0,  "acceptable": 0.0,        "permissible": 0.0,        "unit": "present/absent", "weight": 0.20, "note": "must be absent in 100 mL"}
+  },
+  "wqi_bands": [
+    {"band": "Good",        "min": 0,  "max": 25,  "colour": "#34A853"},
+    {"band": "Acceptable",  "min": 25, "max": 50,  "colour": "#A8D08D"},
+    {"band": "Poor",        "min": 50, "max": 75,  "colour": "#F4B400"},
+    {"band": "Unsafe",      "min": 75, "max": 100, "colour": "#EA4335"}
+  ],
+  "_note": "WQI is a RISK score: 0 = perfect, 100 = worst. Labelled on screen."
+}
