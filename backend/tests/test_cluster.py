@@ -44,6 +44,26 @@ class ClusterTest(NirikshanTest):
         # the identity rule is stated in the evidence, not hidden in the UI
         self.assertIn("PLACE", detail["evidence"]["rule"])
 
+    def test_every_water_case_names_its_own_ward(self):
+        # Regression: the rule string once reported a leaked loop variable, so a
+        # zone_3 case claimed "PLACE ward zone_5" in front of the judge.
+        self.run_cluster()
+        parents = {}
+        for node in self.get("/api/network")["nodes"]:
+            if node["parent_id"]:
+                parents[node["id"]] = node["parent_id"]
+        for case in self.get("/api/cases")["cases"]:
+            if case["domain"] != "water" or case["status"] == "Resolved":
+                continue
+            rule = case["evidence"].get("rule") or ""
+            if "PLACE ward" not in rule:
+                continue
+            cited = rule.split("PLACE ward ")[1].split(" ->")[0].strip()
+            wards = {parents.get(b, b) for b in case["evidence"]["buildings"]}
+            self.assertIn(cited, wards,
+                          "%s cites ward %s but its buildings are in %s"
+                          % (case["id"], cited, sorted(wards)))
+
     def test_s5_is_building_side_not_municipal(self):
         self.run_cluster()
         cases = [c for c in self.get("/api/cases")["cases"] if c["node_id"] == "B11"]

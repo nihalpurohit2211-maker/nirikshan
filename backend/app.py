@@ -191,6 +191,42 @@ def _agent():
     return agent
 
 
+def _store_upload(image, complaint_id):
+    """A real upload is written to data/images/ and stored as its path (§4.1).
+
+    Returns (image_path, (bytes, mime)) for an upload, (image, None) for a path.
+    """
+    if not image or not image.startswith("data:image/"):
+        return image, None
+    mime, _, payload = image.partition("base64,")
+    mime = mime[len("data:"):].rstrip(";")
+    if mime not in ("image/jpeg", "image/png"):
+        raise HTTPException(400, "only jpg/png uploads are accepted")
+    try:
+        import base64
+        raw = base64.b64decode(payload, validate=True)
+    except Exception:                                   # noqa: BLE001 - bad payload
+        raise HTTPException(400, "the image payload is not valid base64")
+    ext = "jpg" if mime == "image/jpeg" else "png"
+    directory = os.path.join(ROOT, "data", "images")
+    path = os.path.join(directory, "upload_%s.%s" % (complaint_id, ext))
+    with open(path, "wb") as fh:
+        fh.write(raw)
+    return "data/images/upload_%s.%s" % (complaint_id, ext), (raw, mime)
+
+
+def _vision(agent, raw_bytes, mime):
+    """Only a decoded upload reaches a vision model; offline says metadata only."""
+    text, mode = agent.call_vision(
+        "You are looking at one photo attached to a citizen environmental complaint."
+        " Describe only what is visible and say what you cannot tell from the image."
+        " Never invent a measurement.",
+        "Complaint photo (%s)." % mime, raw_bytes, mime)
+    return {"analysed": text is not None, "ai": mode,
+            "note": text or "metadata only: %s, %d bytes" % (mime, len(raw_bytes)),
+            "bytes": len(raw_bytes)}
+
+
 # ---------------------------------------------------------------------------
 # request bodies
 # ---------------------------------------------------------------------------
@@ -245,7 +281,8 @@ def health():
             "cases": conn.execute("SELECT COUNT(*) n FROM cases").fetchone()["n"],
         }
         return {"status": "ok", "demo_now": demo_now(conn), "counts": counts,
-                "ai": "offline", "disclaimer": DISCLAIMER, "data": DATA_LABEL}
+                "ai": _agent().provider_mode(),
+                "disclaimer": DISCLAIMER, "data": DATA_LABEL}
     finally:
         conn.close()
 
@@ -505,12 +542,13 @@ def _insert_complaint(conn, body: ComplaintIn):
     suggestion = agent.extract_complaint(body.text or "")
     category = body.category or suggestion.get("category") or "Unspecified"
     cid = next_id(conn, "complaint")
+    image_path, upload = _store_upload(body.image, cid)
     conn.execute(
         "INSERT INTO complaints(id, timestamp, domain, node_id, category, text,"
         " status, image_path, extracted_fields, duration_days, area_m2)"
         " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
         (cid, now, body.domain, body.node_id, category, body.text, "NEW",
-         body.image, json.dumps(suggestion, sort_keys=True), body.duration_days,
+         image_path, json.dumps(suggestion, sort_keys=True), body.duration_days,
          body.area_m2))
     conn.commit()
     complaint = dict(conn.execute("SELECT * FROM complaints WHERE id = ?",
@@ -519,9 +557,11 @@ def _insert_complaint(conn, body: ComplaintIn):
     affected = [c["id"] for c in cluster_result["created"] + cluster_result["updated"]
                 if cid in json.loads(c["evidence_json"]).get("complaints", [])]
     nearest = _nearest_sensor(conn, node) if node is not None else None
+    vision = _vision(agent, *upload) if upload else None
     return {
         "complaint": complaint, "suggestion": suggestion,
         "ai": agent.provider_mode(), "cases": affected,
+        "vision": vision,
         "cluster": {"created": [c["id"] for c in cluster_result["created"]],
                     "updated": [c["id"] for c in cluster_result["updated"]]},
         "nearest_sensor": nearest, "node": dict(node) if node else None,
@@ -637,6 +677,20 @@ def _case_or_404(conn, case_id):
     return dict(row)
 
 
+def _standards_for_case(conn, case):
+    """The rows this case actually violates (water), else the domain's rows."""
+    domain = case["domain"]
+    if domain != "water":
+        return standards_mod.load(conn, domain)
+    latest = rules_mod.bulk_latest(conn)
+    coliform = rules_mod.bulk_coliform(conn)
+    values = latest.get(case["node_id"])
+    if not values:
+        return standards_mod.load(conn, "water")
+    return standards_mod.for_water_breaches(conn, LIMITS, values,
+                                            coliform.get(case["node_id"]))
+
+
 @app.get("/api/cases/{case_id}")
 def case_detail(case_id: str):
     conn = db()
@@ -652,19 +706,7 @@ def case_detail(case_id: str):
                                tuple(evidence["complaints"]))
         trace = _trace_payload(conn, case)
         domain = case["domain"]
-        if domain == "water":
-            from backend import wqi as wqi_mod
-            latest = rules_mod.bulk_latest(conn)
-            coliform = rules_mod.bulk_coliform(conn)
-            values = latest.get(case["node_id"])
-            breached = standards_mod.for_water_breaches(conn, LIMITS, values,
-                                                       coliform.get(case["node_id"]))
-            if not values:
-                breached = standards_mod.load(conn, "water")
-        elif domain == "air":
-            breached = standards_mod.load(conn, "air")
-        else:
-            breached = standards_mod.load(conn, "land")
+        breached = _standards_for_case(conn, case)
         actions = _rows(conn, "SELECT * FROM case_actions WHERE case_id = ?"
                               " ORDER BY timestamp, id", (case_id,))
         now = demo_now(conn)
@@ -737,7 +779,7 @@ def draft_case(case_id: str):
     try:
         case = _case_or_404(conn, case_id)
         evidence = json.loads(case["evidence_json"] or "{}")
-        standards_rows = standards_mod.load(conn, case["domain"])
+        standards_rows = _standards_for_case(conn, case)
         text = agent.draft_advisory(case, evidence, standards_rows)
         mode = agent.provider_mode()
         now = demo_now(conn)
@@ -747,7 +789,7 @@ def draft_case(case_id: str):
         conn.execute("UPDATE cases SET updated_at = ? WHERE id = ?", (now, case_id))
         conn.commit()
         return {"case_id": case_id, "text": text, "status": "DRAFT", "ai": mode,
-                "explanation": agent.explain_case(case, evidence, standards_rows),
+                "explanation": agent.explain_case(case, standards_rows, evidence),
                 "disclaimer": DISCLAIMER}
     finally:
         conn.close()

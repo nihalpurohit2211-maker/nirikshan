@@ -258,6 +258,7 @@ def cluster(conn, cfg, limits, aqi_cfg=None):
 
     for cand_info in sorted(candidates, key=lambda c: c["rank"]):
         cand, group, gb = cand_info["cand"], cand_info["group"], cand_info["gb"]
+        ward = cand_info["ward"]
         values, col, evidence = cand_info["values"], cand_info["col"], cand_info["evidence"]
         texts = " ".join((c["text"] or "").lower() for c in group)
         supply_loss = any(p in texts for p in SUPPLY_LOSS_PHRASES) and all(

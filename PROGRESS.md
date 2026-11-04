@@ -8,7 +8,7 @@
 - [x] Phase 0 — scaffold, venv, pinned deps, `config/*.json`, `docs/` → **CP0** (committed `d5b5f60`)
 - [x] Phase 1 — `schema.sql`, `seed.py`, `verify_seed.py`, demo numbers contract → **CP1** (31 checks, 0 failures)
 - [x] Phase 2 — backend core modules + API + tests green on 8010 → **CP2** (50 tests, OK)
-- [ ] Phase 3 — `agent.py` + offline fallback, DRAFT stamp → **CP3**
+- [x] Phase 3 — `agent.py` + offline fallback, DRAFT stamp → **CP3** (81 tests, OK; draft = DRAFT)
 - [ ] Phase 4 — `frontend_fallback/index.html` (first) + React app builds → **CP4**
 - [ ] Phase 5 — air + land + reports wired, all scenarios walk through → **CP5**
 - [ ] Phase 6 — README, rehearsal, offline check, submission, `TRANSFER.md` → **CP6**
@@ -73,6 +73,26 @@
   literals were removed while writing Phase 2: the case-id year (`db.next_id` now derives
   it from `demo_now()`), the pipe-age reference year (`graph.py` imports `REFERENCE_YEAR`),
   and the hotspot window timestamp. Keep it that way.
+- **Bug found by writing the Phase 3 test text, not by a test assertion.** `rules.cluster()`
+  built its evidence `rule` string from the `ward` variable left over from the candidate
+  loop instead of the candidate's own ward, so the zone_3 case publicly claimed
+  `"PLACE ward zone_5"`. Fixed, and `test_cluster.test_every_water_case_names_its_own_ward`
+  now checks that every water case's cited ward is one of its buildings' parents.
+- **The offline agent is a floor, not a fallback.** `extract_complaint` always computes the
+  keyword/regex answer first and only then merges the model's JSON over it; a number the
+  model returns that does not appear in the citizen's text is thrown away (§8.4 "never
+  invent numbers"), so the demo cannot be broken by a hallucinating provider.
+- §8.5 maps **dust/smoke to "air pollution"**, so the keyword table follows that order and
+  the bare `"dust"` category is only ever produced by a model. Matching is word-aware
+  (`\bstem\w{0,3}\b` / prefix `*` / phrases), which is why "hair" is not "air" and
+  "wastewater" is not a "waste" dump — both are asserted in `test_agent.py`.
+- `_limit_text()` reads `acceptable` (the bound the classifier actually used) rather than
+  `ideal` — for turbidity/TDS `ideal` is 0.0, and quoting that as "the standard" would have
+  put a wrong number on screen. Ranges print `6.5-8.5`, one-sided rows print the bound.
+- Real uploads (`data:image/jpeg|png;base64`) are written to `data/images/upload_<id>.<ext>`,
+  served through the existing static mount and only then offered to a vision model; the
+  seeded SVGs never reach a model. Those files are gitignored like `nirikshan.db` (they are
+  user data, and Windows will not unlink a file a running StaticFiles handle holds).
 
 ## Gate results
 
@@ -83,6 +103,13 @@
   tests, OK**, exit 0. Gate 1 re-run after the Phase 2 edits: still 31 / 0. Tests boot on
   **8010** against a temp copy of `nirikshan.db`; port 8010 was free, no `base.py` change
   needed.
+- **Gate 3:** `PY -m unittest discover -s backend/tests` -> **Ran 81 tests, OK**, exit 0;
+  smoke on **8000** with `LLM_PROVIDER=offline`: `/api/health` answers with no network,
+  `POST /api/cases/CASE-2026-003/draft` returns `"status": "DRAFT"` + `"ai": "offline"`,
+  `POST /api/reports/daily` returns a 5-section DRAFT. Gate 1 re-run: still 31 / 0.
+  **Watch stale servers:** a smoke server left listening on 8000 answers the next smoke
+  run with yesterday's code. `netstat -ano | grep :8000 | grep LISTENING` before and after,
+  and kill by PID (`taskkill //PID n //F`; Git Bash here has no `pkill`).
 
 ---
 
@@ -153,3 +180,32 @@
   `app.py` already calls `provider_mode()`), the verbatim prompts, the one-retry-then-offline
   rule, `backend/tests/test_agent.py`, then Gate 3: tests green **and**
   `POST /api/cases/{id}/draft` returns `"status": "DRAFT"`.
+
+## SESSION — 2026-11-04 09:55 — unattended agent (build session 4)
+- Entered at: CP2 (verified by `git log --oneline` -> `dd91a6b CP2: backend core, all tests green`,
+  and by re-running the suite: 50 tests OK). Session 3 had committed CP2 in the same act.
+- Work done (Phase 3 complete):
+  - `backend/agent.py` (§8.1-§8.5): `Provider`/`GeminiProvider`/`OpenAICompatProvider`/
+    `OfflineProvider`, env-driven `get_provider()` (cached per env signature),
+    `provider_mode()`, `call()` + `call_vision()` implementing the one-retry-then-offline
+    contract, the four verbatim §8.4 prompts, and the deterministic offline layer
+    (keyword table + duration/area regex + templates for explain/advisory/daily).
+  - `backend/tests/test_agent.py` — 31 tests: offline extraction (§8.5 order, word-boundary
+    guards, regex numbers), provider selection from the env table, the §8.3 retry contract
+    (exactly one retry, empty completion falls back, fenced JSON parsed), and the endpoint
+    flows through a stub provider (canned draft, invented-number rejection, failure ->
+    offline, upload stored + served, `/api/health` never calls the provider).
+  - `backend/app.py`: health now reports the real configured mode; `explain_case` argument
+    order matches §8.1; new `_store_upload`/`_vision` + `_standards_for_case` (the draft
+    endpoint now cites the rows the case actually breaches).
+  - `backend/rules.py`: fixed the leaked-`ward` bug in the evidence rule string + regression test.
+  - `.gitignore`: `data/images/upload_*`.
+- Left at: CP3 — gate **PASS** (81 tests OK; Gate 1 31/0; 8000 smoke: draft returns
+  `"status": "DRAFT"`, `"ai": "offline"`), committed as `CP3: AI agent with offline fallback`.
+- Blockers: none.
+- Next action for the next agent: Phase 4 (§9.1) — **write `frontend_fallback/index.html`
+  FIRST** (single file, inline CSS+JS, whole demo path, `fetch('/api/...')`), verify against
+  the backend on 8000, commit; then `npm create vite@latest frontend -- --template react`,
+  pin §3 versions, `npm install`, React app (theme tokens §9.2, pages §9.3-§9.6). Gate 4:
+  `npm run build` exit 0 + the fallback UI walks the demo on 8000. If `npm install` fails
+  offline -> BLOCKED.md + keep the fallback UI + skip to Phase 5.
