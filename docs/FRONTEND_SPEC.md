@@ -1383,24 +1383,6 @@ CaseDetail in one call: `case`, `evidence`, `trace`, only the breached `standard
       "note": "Clustering created this case from 5 complaint(s) sharing zone_3",
       "role": "Automated system",
       "timestamp": "2026-11-03 09:00:00"
-    },
-    {
-      "action": "Draft advisory",
-      "actor": "Nirikshan agent",
-      "case_id": "CASE-2026-003",
-      "id": "ACT015",
-      "note": "DRAFT \u2014 not sent until a human approves (provider: offline)",
-      "role": "AI (advisory only)",
-      "timestamp": "2026-11-03 09:00:00"
-    },
-    {
-      "action": "Draft advisory",
-      "actor": "Nirikshan agent",
-      "case_id": "CASE-2026-003",
-      "id": "ACT016",
-      "note": "DRAFT \u2014 not sent until a human approves (provider: offline)",
-      "role": "AI (advisory only)",
-      "timestamp": "2026-11-03 09:00:00"
     }
   ],
   "allowed_transitions": [
@@ -2213,7 +2195,7 @@ _Sampled for reading — `cluster.updated`: the first 3 of 6 rows. Every row has
 
 ### POST /api/cluster/run
 
-`Run clustering` button. Idempotent and deterministic: the same complaints produce the same cases, so calling it twice is harmless. Returns `created`, `updated`, `skipped`.
+`Run clustering` button. Idempotent and deterministic: the same complaints produce the same cases, so calling it twice is harmless. Returns `created` and `updated`, each a list of the full case rows (note: `evidence_json` is a raw string here, unlike `/api/cases` which parses it); a case that needed no change is simply in neither list.
 
 _No parameters._
 
@@ -2307,12 +2289,12 @@ Workflow advance. The server enforces the whitelist (Open -> Investigating -> Ac
       "timestamp": "2026-11-03 09:00:00"
     },
     {
-      "action": "Draft advisory",
-      "actor": "Nirikshan agent",
+      "action": "Evidence refreshed",
+      "actor": "Nirikshan engine",
       "case_id": "CASE-2026-003",
       "id": "ACT015",
-      "note": "DRAFT \u2014 not sent until a human approves (provider: offline)",
-      "role": "AI (advisory only)",
+      "note": "Severity High -> High; evidence recomputed from current readings",
+      "role": "Automated system",
       "timestamp": "2026-11-03 09:00:00"
     }
   ],
@@ -2331,7 +2313,7 @@ Workflow advance. The server enforces the whitelist (Open -> Investigating -> Ac
 }
 ```
 
-_Sampled for reading — `a.c.t.i.o.n.s`: the first 2 of 6 rows; strings longer than 600 chars. Every row has exactly this shape; the counts come from `/api/health`._
+_Sampled for reading — `a.c.t.i.o.n.s`: the first 2 of 4 rows; strings longer than 600 chars. Every row has exactly this shape; the counts come from `/api/health`._
 
 ### POST /api/cases/{case_id}/approve
 
@@ -2369,12 +2351,12 @@ Human sign-off on the draft. Logs actor + role; the optional `advance_to` is che
       "timestamp": "2026-11-03 09:00:00"
     },
     {
-      "action": "Draft advisory",
-      "actor": "Nirikshan agent",
+      "action": "Evidence refreshed",
+      "actor": "Nirikshan engine",
       "case_id": "CASE-2026-003",
       "id": "ACT015",
-      "note": "DRAFT \u2014 not sent until a human approves (provider: offline)",
-      "role": "AI (advisory only)",
+      "note": "Severity High -> High; evidence recomputed from current readings",
+      "role": "Automated system",
       "timestamp": "2026-11-03 09:00:00"
     }
   ],
@@ -2395,7 +2377,7 @@ Human sign-off on the draft. Logs actor + role; the optional `advance_to` is che
 }
 ```
 
-_Sampled for reading — `a.c.t.i.o.n.s`: the first 2 of 7 rows; strings longer than 600 chars. Every row has exactly this shape; the counts come from `/api/health`._
+_Sampled for reading — `a.c.t.i.o.n.s`: the first 2 of 5 rows; strings longer than 600 chars. Every row has exactly this shape; the counts come from `/api/health`._
 
 ### POST /api/land/reports
 

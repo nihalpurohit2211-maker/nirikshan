@@ -17,6 +17,11 @@
       green, §13 of the spec)
 - [ ] Phase 6 — README, rehearsal, offline check, submission, `TRANSFER.md` → **CP6**
 
+**2026-11-04 11:45 — scope changed back:** the user cancelled the frontend handoff. This
+build owns the UI. `docs/FRONTEND_SPEC.md` is no longer a handoff to another agent, it is
+the specification this build implements, in `frontend_fallback/`, plain HTML/CSS/JS, no npm,
+no CDN. Phase 6 runs after the UI and two full browser walkthroughs of the demo.
+
 ## Environment notes (read before running any command)
 
 - This session's shell is **Git Bash on Windows**, not PowerShell. The PLAN `PY` shorthand

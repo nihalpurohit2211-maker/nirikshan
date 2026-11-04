@@ -227,9 +227,11 @@ def write_endpoints():
                   "text": "Brown water from the tap since 3 days, smells of sewage"},
             cuts=((("cluster", "created"), 3), (("cluster", "updated"), 3)))
     capture("POST", "/api/cluster/run",
-            "`Run clustering` button. Idempotent and deterministic: the same "
-            "complaints produce the same cases, so calling it twice is harmless. "
-            "Returns `created`, `updated`, `skipped`.",
+            "`Run clustering` button. Idempotent and deterministic: the same complaints "
+            "produce the same cases, so calling it twice is harmless. Returns `created` and "
+            "`updated`, each a list of the full case rows (note: `evidence_json` is a raw "
+            "string here, unlike `/api/cases` which parses it); a case that needed no change "
+            "is simply in neither list.",
             cuts=(("created", 1), ("updated", 1)))
     capture("POST", "/api/cases/{case_id}/draft",
             "Draft advisory + explanation. Both come back stamped (`status: DRAFT`) "
