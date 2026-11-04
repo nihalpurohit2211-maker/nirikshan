@@ -2780,6 +2780,8 @@ backend.app:app --port 8000` from a fresh clone plus `PY seed.py`.
       blank screen or an uncaught promise.
 - [ ] Null-safe empty states: a node with no sensor, a report with no image, a non-water
       case with no trace.
+- [ ] Every row of the §13 coverage table has a place in the UI — that table is the list of
+      stories the data actually supports, generated from the live server.
 - [ ] `npm` is not required for any of the above.
 - [ ] `PY -m unittest discover -s backend/tests` is still green after you finish — the
       suite covers the API, so a failure means the UI asked the backend to change.
@@ -2797,6 +2799,53 @@ backend.app:app --port 8000` from a fresh clone plus `PY seed.py`.
 If you need a new field, ask for it — do not derive compliance verdicts in the browser.
 The rules engine is deterministic and tested; a second implementation in the UI is how the
 demo starts lying.
+---
+
+## 13. Data coverage — every scenario is reachable through the API
+
+Phase 5 of the build re-checks each planted scenario against the running server, from
+this same generator, and the table below is what it saw on this run. A row that fails
+stops the generator, so the document cannot ship with a hole in it. For the UI that means
+one thing: **every story in the demo has a public endpoint that returns its data — nothing
+here needs a new backend route.**
+
+The signals the UI has to surface, and where each one lives:
+
+| Signal | Where it appears | How to render it |
+|---|---|---|
+| Standards breach | `standards[]` on `/api/cases/{id}` — only the breached rows are returned, each with `citation` | number vs limit with the citation under it; `standards_excerpt` is the raw IS 10500 / NAQI text |
+| Anomaly | `evidence.anomaly` (case) and `anomaly` on `/api/nodes/{id}` — `z`, `baseline_mean`, `baseline_std`, `flag` | draw the baseline band on the 14-day chart; the hero zone is z ≈ 150, which is why it is not noise |
+| Overdue | `overdue` on `/api/overview` `triage[]` and on `/api/cases` | red OVERDUE badge. The rule is High/Emergency with no action for 2 h, so at the seeded clock every case is fresh and the count is 0 — the badge appears as soon as the demo clock advances past a case with no action; never recompute it client-side |
+| Severity + scope | `severity`, `scope` on every case | Emergency/High/Medium/Low and MUNICIPAL/BUILDING_SIDE both exist in the seed, so the list page needs all four badges and a "building-side, not municipal" style |
+| Forecast crossing | `/api/nodes/{id}/forecast` — `current`, `limit`, `crossing_hours`, `breached_now` | dashed 0.2 mg/L line and a marker at the crossing; `breached_now: false` means "warn", not "alarm" |
+| Trace / worst pipe | `/api/trace/{case_id}` — `path`, `hops`, `worst_pipe`, `worst_pipe_decay_k`, `explanation` | red pulse + `explanation` in words; air/land cases return 400, so hide the action there |
+| Hotspots | `/api/hotspots`, also inside `/api/overview` | ranked wards with the factor breakdown that produced the rank |
+| Cross-domain link | `cross_link` on `/api/land/reports` and `evidence.cross_link` on the land case | a banner on the land report that deep-links to the water node it is affecting |
+| Draft state | `status: "DRAFT"` + `ai` on `/draft` and `/reports/daily` | DRAFT stamp until `/approve`; the `ai` value says whether a real model or the offline template wrote it |
+
+| Scenario / signal | Endpoint | What the API actually returned | OK |
+|---|---|---|---|
+| seed loaded | `/api/health` | 98 nodes, 78 pipes, 27 sensors, 5712 readings, 20 complaints, 8 cases | yes |
+| S1 contamination (hero) | `/api/nodes/zone_3, /api/cases` | turbidity 9.0 NTU, chlorine 0.038 mg/L, WQI 94.4 (Unsafe), coliform True; CASE-2026-003 groups 5 complaints | yes |
+| S2 pipe burst (act two) | `/api/cases` | CASE-2026-004: Supply loss on the Ward 4 - Plateau branch | yes |
+| S3 supply diversion | `/api/nodes/zone_2, /api/cases` | 1 `flow_changed` maintenance row(s) on zone_2; the zone_2 case carries `evidence.flow_changed` | yes |
+| S4 chlorine forecast | `/api/nodes/zone_5/forecast` | 0.235 mg/L now, crosses 0.2 in 21 h, breached_now=False | yes |
+| S5 building-side | `/api/cases` | CASE-2026-006: BUILDING_SIDE at B11 | yes |
+| S6 dust episode (air) | `/api/air, /api/air/{station_id}/readings` | worst air_08 = AQI 312.5 (Very Poor, driving PM10, PM10 360.0); 336 h of readings exposed | yes |
+| S6 air case | `/api/cases?domain=air` | CASE-2026-007: High (air_08), evidence.aqi=True | yes |
+| S7 open waste dump (land) | `/api/land/reports` | CMP015 at land_05: photo yes, 12 days, 40.0 m2, proximity 80 from 4 factors | yes |
+| S7 land case | `/api/cases?domain=land` | CASE-2026-008: Open waste dump at School Ground Dump | yes |
+| S8 erosion -> turbidity | `/api/land/reports` | CMP016 cross_link: res_hill trend rising 0.007 | yes |
+| N0 normal day must not cluster | `/api/complaints, /api/cases` | 5 of 20 complaints sit outside every case (CMP016, CMP017, CMP018, CMP019, CMP020) | yes |
+| alerts: overdue | `/api/overview, /api/cases` | 0 of 6 open cases flagged overdue at the demo clock (rule: High/Emergency with no action for 2 h) | yes |
+| alerts: anomaly | `/api/nodes/zone_3, /api/cases/{id}` | turbidity z=151.6 against a baseline of 1.47 +/- 0.05; case evidence flag=True | yes |
+| alerts: severity + scope | `/api/cases` | severities ['Emergency', 'High', 'Low', 'Medium'], scopes ['BUILDING_SIDE', 'MUNICIPAL'] | yes |
+| alerts: standards cited | `/api/cases/{id}` | 3 breached rows, e.g. Turbidity (NTU) [IS 10500:2012, Table 1, excerpt - verify] | yes |
+| alerts: trace to the worst pipe | `/api/trace/{case_id}` | 6 hops, worst P048 (k=0.257) | yes |
+| map data | `/api/network` | 98 nodes (17 with a WQI score), 78 pipes | yes |
+| hotspots | `/api/hotspots, /api/overview` | 5 ranked wards, top zone_3 (Ward 3 - Khadki Old Town) score 112.2 from complaints_24h, open_cases, severity, wqi | yes |
+| reports: dashboard KPIs | `/api/overview` | open 6, worst WQI 94.4, worst AQI 312.5, complaints 24 h 18 | yes |
+| reports: daily summary | `POST /api/reports/daily` | 5 sections, status DRAFT, ai offline, snapshot KPIs attached | yes |
 
 ---
 

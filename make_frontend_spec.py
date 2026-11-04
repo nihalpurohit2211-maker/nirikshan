@@ -1,13 +1,15 @@
-"""Generate the frontend handoff documents from the running app (revised Phase 4).
+"""Generate the frontend handoff documents from the running app (revised Phases 4-5).
 
     ./.venv/Scripts/python.exe make_frontend_spec.py
 
 Boots the real app under uvicorn on the test port against a TEMP COPY of the
 seeded database (the same harness `unittest` uses, so the dev database is never
 written), saves the live OpenAPI schema to `docs/openapi.json`, calls every
-endpoint once, and writes `docs/FRONTEND_SPEC.md` with one real response per
-endpoint. Re-run it after any API change: the handoff cannot drift from the code
-because both files are generated from it.
+endpoint once, verifies through the public API that every planted scenario is
+reachable (Phase 5 — that check is §13 of the handoff and a failed row stops the
+run), and writes `docs/FRONTEND_SPEC.md` with one real response per endpoint.
+Re-run it after any API change: the handoff cannot drift from the code because
+both files are generated from it.
 
 Big payloads are sampled (the first few list items) and long strings are cut, each
 noted under its example — the shapes are exact, the row counts are not.
@@ -336,8 +338,219 @@ ROUTE_NOTES = {
 
 
 # ---------------------------------------------------------------------------
-# prose
+# coverage: every planted scenario must be reachable through the public API
 # ---------------------------------------------------------------------------
+
+
+def _get(path):
+    status, payload = base.api(path)
+    if status != 200:
+        raise SystemExit("coverage probe %s -> HTTP %s: %s" % (path, status, payload))
+    return payload
+
+
+def _case(cases, **want):
+    for row in cases:
+        if all(row.get(key) == value for key, value in want.items()):
+            return row
+    return None
+
+
+def verify_coverage():
+    """Phase 5: prove the UI can get every scenario's data without a new endpoint.
+
+    Every row is fetched from the live server and checked here, so the table cannot
+    claim something the API does not do; a failed row stops the run.
+    """
+    health = _get("/api/health")
+    network = _get("/api/network")
+    overview = _get("/api/overview")
+    cases = _get("/api/cases")["cases"]
+    complaints = _get("/api/complaints")["complaints"]
+    air = _get("/api/air")
+    land = _get("/api/land/reports")
+    hotspots = _get("/api/hotspots")["hotspots"]
+    zone3 = _get("/api/nodes/zone_3")
+    zone2 = _get("/api/nodes/zone_2")
+    zone5 = _get("/api/nodes/zone_5/forecast")
+    trace = _get("/api/trace/CASE-2026-003")
+    detail = _get("/api/cases/CASE-2026-003")
+    station = (air["worst"] or air["stations"][0])["id"]
+    air_series = _get("/api/air/%s/readings" % station)
+
+    clustered = {cid for row in cases for cid in row["evidence"].get("complaints", [])}
+    routine = [c["id"] for c in complaints if c["id"] not in clustered]
+    s1 = _case(cases, domain="water", node_id="zone_3", severity="High")
+    s2 = _case(cases, domain="water", severity="Emergency")
+    s5 = _case(cases, domain="water", scope="BUILDING_SIDE")
+    s6 = _case(cases, domain="air")
+    s7 = _case(cases, domain="land")
+    dump = next((r for r in land["reports"] if r["node_id"] == "land_05"), None)
+    erosion = next((r for r in land["reports"] if r.get("cross_link")), None)
+    feed = [m for m in zone2["maintenance"] if m["check_type"] == "flow_changed"]
+    water = zone3["latest"]
+    worst_air = air["worst"]
+    sections, status, ai = _post_daily()
+
+    return [
+        ("seed loaded", "/api/health",
+         "%(nodes)s nodes, %(pipes)s pipes, %(sensors)s sensors, %(readings)s readings, "
+         "%(complaints)s complaints, %(cases)s cases" % health["counts"],
+         health["counts"]["nodes"] == 98 and health["counts"]["pipes"] == 78
+         and health["counts"]["sensors"] == 27),
+        ("S1 contamination (hero)", "/api/nodes/zone_3, /api/cases",
+         "turbidity %.1f NTU, chlorine %.3f mg/L, WQI %.1f (%s), coliform %s; %s groups "
+         "%d complaints" % (water["turbidity_ntu"], water["residual_chlorine_mgl"],
+                            zone3["wqi"]["score"], zone3["wqi"]["band"],
+                            zone3["coliform_present"], s1["id"] if s1 else "no case",
+                            len(s1["evidence"]["complaints"]) if s1 else 0),
+         bool(s1) and water["turbidity_ntu"] > 5
+         and water["residual_chlorine_mgl"] < 0.1
+         and zone3["wqi"]["band"] == "Unsafe" and zone3["coliform_present"]),
+        ("S2 pipe burst (act two)", "/api/cases",
+         "%s: %s" % (s2["id"], s2["title"]) if s2 else "no Emergency water case",
+         bool(s2) and s2["node_id"] == "zone_4"),
+        ("S3 supply diversion", "/api/nodes/zone_2, /api/cases",
+         "%d `flow_changed` maintenance row(s) on zone_2; the zone_2 case carries "
+         "`evidence.flow_changed`" % len(feed),
+         bool(feed) and any(row["evidence"].get("flow_changed") for row in cases)),
+        ("S4 chlorine forecast", "/api/nodes/zone_5/forecast",
+         "%.3f mg/L now, crosses %.1f in %s h, breached_now=%s"
+         % (zone5["current"], zone5["limit"], zone5["crossing_hours"],
+            zone5["breached_now"]),
+         18 <= (zone5["crossing_hours"] or 0) <= 24 and not zone5["breached_now"]
+         and abs(zone5["current"] - 0.235) < 0.01),
+        ("S5 building-side", "/api/cases",
+         "%s: %s at %s" % (s5["id"], s5["scope"], s5["node_id"]) if s5
+         else "no BUILDING_SIDE case",
+         bool(s5) and s5["node_id"] == "B11"),
+        ("S6 dust episode (air)", "/api/air, /api/air/{station_id}/readings",
+         "worst %s = AQI %s (%s, driving %s, PM10 %s); %d h of readings exposed"
+         % (worst_air["id"], worst_air["aqi"]["value"], worst_air["aqi"]["category"],
+            worst_air["aqi"]["driving_pollutant"], worst_air["latest"]["pm10"],
+            air_series["hours"]),
+         worst_air["aqi"]["value"] >= 301 and air_series["hours"] > 100),
+        ("S6 air case", "/api/cases?domain=air",
+         "%s: %s (%s), evidence.aqi=%s" % (s6["id"], s6["severity"], s6["node_id"],
+                                          bool(s6["evidence"].get("aqi"))) if s6
+         else "no air case",
+         bool(s6) and bool(s6["evidence"].get("aqi"))),
+        ("S7 open waste dump (land)", "/api/land/reports",
+         "%s at %s: photo %s, %s days, %s m2, proximity %s from %d factors"
+         % (dump["id"], dump["node_id"], "yes" if dump["image_url"] else "none",
+            dump["duration_days"], dump["area_m2"], dump["proximity"]["score"],
+            len(dump["proximity"]["factors"])) if dump else "no land_05 report",
+         bool(dump) and dump["image_url"] and dump["proximity"]["score"] >= 50),
+        ("S7 land case", "/api/cases?domain=land",
+         "%s: %s" % (s7["id"], s7["title"]) if s7 else "no land case",
+         bool(s7) and bool(s7["evidence"].get("proximity"))),
+        ("S8 erosion -> turbidity", "/api/land/reports",
+         "%s cross_link: %s trend %s %s" % (erosion["id"],
+                                           erosion["cross_link"]["water_node"],
+                                           erosion["cross_link"]["direction"],
+                                           erosion["cross_link"]["trend"]) if erosion
+         else "no cross-linked report",
+         bool(erosion) and erosion["cross_link"]["water_node"] == "res_hill"),
+        ("N0 normal day must not cluster", "/api/complaints, /api/cases",
+         "%d of %d complaints sit outside every case (%s)"
+         % (len(routine), len(complaints), ", ".join(sorted(routine))),
+         {"CMP017", "CMP018", "CMP019", "CMP020"} <= set(routine)),
+        ("alerts: overdue", "/api/overview, /api/cases",
+         "%d of %d open cases flagged overdue at the demo clock (rule: High/Emergency "
+         "with no action for 2 h)" % (sum(1 for c in overview["triage"] if c["overdue"]),
+                                     len(overview["triage"])),
+         all("overdue" in c for c in overview["triage"])),
+        ("alerts: anomaly", "/api/nodes/zone_3, /api/cases/{id}",
+         "turbidity z=%.1f against a baseline of %.2f +/- %.2f; case evidence flag=%s"
+         % (zone3["anomaly"]["z"], zone3["anomaly"]["baseline_mean"],
+            zone3["anomaly"]["baseline_std"], detail["evidence"]["anomaly"]["anomaly_flag"]),
+         zone3["anomaly"]["flag"] and detail["evidence"]["anomaly"]["anomaly_flag"]),
+        ("alerts: severity + scope", "/api/cases",
+         "severities %s, scopes %s" % (sorted({c["severity"] for c in cases}),
+                                       sorted({c["scope"] for c in cases})),
+         {"Emergency", "High", "Medium", "Low"} == {c["severity"] for c in cases}
+         and {"MUNICIPAL", "BUILDING_SIDE"} == {c["scope"] for c in cases}),
+        ("alerts: standards cited", "/api/cases/{id}",
+         "%d breached rows, e.g. %s [%s]" % (len(detail["standards"]),
+                                            detail["standards"][0]["parameter"],
+                                            detail["standards"][0]["citation"])
+         if detail["standards"] else "no standards rows",
+         bool(detail["standards"]) and all(r["citation"] for r in detail["standards"])),
+        ("alerts: trace to the worst pipe", "/api/trace/{case_id}",
+         "%d hops, worst %s (k=%s)" % (trace["hops"], trace["worst_pipe"]["id"],
+                                       trace["worst_pipe_decay_k"]),
+         trace["hops"] >= 2 and bool(trace["worst_pipe"])),
+        ("map data", "/api/network",
+         "%d nodes (%d with a WQI score), %d pipes"
+         % (len(network["nodes"]), sum(1 for n in network["nodes"] if n["wqi"]),
+            len(network["pipes"])),
+         len(network["nodes"]) == 98 and len(network["pipes"]) == 78),
+        ("hotspots", "/api/hotspots, /api/overview",
+         "%d ranked wards, top %s (%s) score %s from %s"
+         % (len(hotspots), hotspots[0]["node_id"], hotspots[0]["name"],
+            hotspots[0]["score"], ", ".join(sorted(hotspots[0]["factors"]))) if hotspots
+         else "no hotspots",
+         bool(hotspots) and {"wqi", "open_cases", "severity",
+                             "complaints_24h"} == set(hotspots[0]["factors"])),
+        ("reports: dashboard KPIs", "/api/overview",
+         "open %s, worst WQI %s, worst AQI %s, complaints 24 h %s"
+         % (overview["kpis"]["open_cases"], overview["kpis"]["worst_wqi"]["score"],
+            overview["kpis"]["worst_aqi"]["value"], overview["kpis"]["complaints_24h"]),
+         all(k in overview["kpis"] for k in ("open_cases", "worst_wqi", "worst_aqi",
+                                             "complaints_24h"))),
+        ("reports: daily summary", "POST /api/reports/daily",
+         "%d sections, status %s, ai %s, snapshot KPIs attached"
+         % (sections, status, ai), status == "DRAFT"),
+    ]
+
+
+def _post_daily():
+    status, payload = base.api("/api/reports/daily", method="POST", body={})
+    if status != 200:
+        raise SystemExit("POST /api/reports/daily -> %s %s" % (status, payload))
+    sections = len([ln for ln in payload["text"].splitlines() if ln.isupper()])
+    if sections != 5 or payload["status"] != "DRAFT":
+        raise SystemExit("daily report must be 5 DRAFT sections, got %s/%s"
+                         % (sections, payload["status"]))
+    return sections, payload["status"], payload["ai"]
+
+
+def coverage_table(rows):
+    out = ["| Scenario / signal | Endpoint | What the API actually returned | OK |",
+           "|---|---|---|---|"]
+    for label, endpoint, observed, ok in rows:
+        out.append("| %s | `%s` | %s | %s |" % (label, endpoint, observed,
+                                                "yes" if ok else "**no**"))
+    return "\n".join(out)
+
+
+COVERAGE_HEAD = """
+---
+
+## 13. Data coverage — every scenario is reachable through the API
+
+Phase 5 of the build re-checks each planted scenario against the running server, from
+this same generator, and the table below is what it saw on this run. A row that fails
+stops the generator, so the document cannot ship with a hole in it. For the UI that means
+one thing: **every story in the demo has a public endpoint that returns its data — nothing
+here needs a new backend route.**
+
+The signals the UI has to surface, and where each one lives:
+
+| Signal | Where it appears | How to render it |
+|---|---|---|
+| Standards breach | `standards[]` on `/api/cases/{id}` — only the breached rows are returned, each with `citation` | number vs limit with the citation under it; `standards_excerpt` is the raw IS 10500 / NAQI text |
+| Anomaly | `evidence.anomaly` (case) and `anomaly` on `/api/nodes/{id}` — `z`, `baseline_mean`, `baseline_std`, `flag` | draw the baseline band on the 14-day chart; the hero zone is z ≈ 150, which is why it is not noise |
+| Overdue | `overdue` on `/api/overview` `triage[]` and on `/api/cases` | red OVERDUE badge. The rule is High/Emergency with no action for 2 h, so at the seeded clock every case is fresh and the count is 0 — the badge appears as soon as the demo clock advances past a case with no action; never recompute it client-side |
+| Severity + scope | `severity`, `scope` on every case | Emergency/High/Medium/Low and MUNICIPAL/BUILDING_SIDE both exist in the seed, so the list page needs all four badges and a "building-side, not municipal" style |
+| Forecast crossing | `/api/nodes/{id}/forecast` — `current`, `limit`, `crossing_hours`, `breached_now` | dashed 0.2 mg/L line and a marker at the crossing; `breached_now: false` means "warn", not "alarm" |
+| Trace / worst pipe | `/api/trace/{case_id}` — `path`, `hops`, `worst_pipe`, `worst_pipe_decay_k`, `explanation` | red pulse + `explanation` in words; air/land cases return 400, so hide the action there |
+| Hotspots | `/api/hotspots`, also inside `/api/overview` | ranked wards with the factor breakdown that produced the rank |
+| Cross-domain link | `cross_link` on `/api/land/reports` and `evidence.cross_link` on the land case | a banner on the land report that deep-links to the water node it is affecting |
+| Draft state | `status: "DRAFT"` + `ai` on `/draft` and `/reports/daily` | DRAFT stamp until `/approve`; the `ai` value says whether a real model or the offline template wrote it |
+"""
+
+
 
 PROSE = [
     """
@@ -564,6 +777,8 @@ backend.app:app --port 8000` from a fresh clone plus `PY seed.py`.
       blank screen or an uncaught promise.
 - [ ] Null-safe empty states: a node with no sensor, a report with no image, a non-water
       case with no trace.
+- [ ] Every row of the §13 coverage table has a place in the UI — that table is the list of
+      stories the data actually supports, generated from the live server.
 - [ ] `npm` is not required for any of the above.
 - [ ] `PY -m unittest discover -s backend/tests` is still green after you finish — the
       suite covers the API, so a failure means the UI asked the backend to change.
@@ -590,7 +805,7 @@ demo starts lying.
 # ---------------------------------------------------------------------------
 
 
-def build(spec):
+def build(spec, coverage):
     out = [block.strip("\n") for block in PROSE[:2]]
     for section in SECTIONS:
         template = template_of(section)
@@ -628,6 +843,7 @@ def build(spec):
                            section["trimmed"]))
         out.append("")
     out.append(PROSE[3].strip("\n"))
+    out.append(COVERAGE_HEAD.strip("\n") + "\n\n" + coverage_table(coverage) + "\n")
     out.append("\n---\n\n_Generated by `PY make_frontend_spec.py` against a live server "
                "and the seeded database. Do not hand-edit: change the code or the "
                "generator, then re-run — `docs/openapi.json` is rewritten in the same "
@@ -675,13 +891,21 @@ def main():
             fh.write(json.dumps(spec, indent=2, sort_keys=True) + "\n")
 
         read_endpoints()
+        coverage = verify_coverage()
+        failures = ["%s — %s" % (label, observed)
+                    for label, _endpoint, observed, ok in coverage if not ok]
+        if failures:
+            raise SystemExit("coverage check failed, the handoff is not honest:\n  "
+                             + "\n  ".join(failures))
         write_endpoints()
-        text = build(spec)
+        text = build(spec, coverage)
 
         routes = sum(len(ops) for ops in spec["paths"].values())
         print("wrote %s (%d routes, %d lines)"
               % (os.path.relpath(SPEC_PATH, ROOT), routes, len(text.splitlines())))
         print("wrote %s" % os.path.relpath(OPENAPI_PATH, ROOT))
+        print("coverage: %d/%d scenarios verified through the API"
+              % (len(coverage), len(coverage)))
     finally:
         base._shutdown()
 

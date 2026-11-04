@@ -9,11 +9,12 @@
 - [x] Phase 1 — `schema.sql`, `seed.py`, `verify_seed.py`, demo numbers contract → **CP1** (31 checks, 0 failures)
 - [x] Phase 2 — backend core modules + API + tests green on 8010 → **CP2** (50 tests, OK)
 - [x] Phase 3 — `agent.py` + offline fallback, DRAFT stamp → **CP3** (81 tests, OK; draft = DRAFT)
-- [ ] Phase 4 — **scope changed by the user:** frontend is handed to another agent. No React
+- [x] Phase 4 — **scope changed by the user:** frontend is handed to another agent. No React
       app, no npm. Deliverables = minimal `frontend_fallback/index.html` + generated
-      `docs/FRONTEND_SPEC.md` / `docs/openapi.json` → **CP4**
-- [ ] Phase 5 — **scope changed:** verify by API that air, land, alerts and reports data are
-      exposed, and that the spec lists everything the UI needs → **CP5**
+      `docs/FRONTEND_SPEC.md` / `docs/openapi.json` → **CP4** (committed `9e50396`)
+- [x] Phase 5 — **scope changed:** verify by API that air, land, alerts and reports data are
+      exposed, and that the spec lists everything the UI needs → **CP5** (21/21 coverage rows
+      green, §13 of the spec)
 - [ ] Phase 6 — README, rehearsal, offline check, submission, `TRANSFER.md` → **CP6**
 
 ## Environment notes (read before running any command)
@@ -121,6 +122,14 @@
   `frontend_fallback/index.html` (200, text/html) and the browser screenshot shows the
   KPI cards filled from the live API (`2026-11-03 09:00:00`, 6 open cases, AI `offline`).
   A stale smoke server from the previous session was found holding 8000 and killed.
+- **Gate 5 (revised scope):** `PY make_frontend_spec.py` now also runs `verify_coverage()` —
+  21 scenarios/signals probed against the live server (S1–S8, N0, the five alert signals,
+  map, hotspots, dashboard KPIs, daily report) — and prints `coverage: 21/21 scenarios
+  verified through the API`. Any row whose assertion fails raises SystemExit and lists the
+  rows, so the handoff cannot claim a story the API does not expose; the table is embedded
+  as §13 of `docs/FRONTEND_SPEC.md` (2,852 lines, 21 routes). `PY -m unittest discover -s
+  backend/tests` -> **Ran 81 tests, OK**. Nothing added to the API: air, land, alerts and
+  reports were already fully exposed, which is what §13 proves.
 
 ---
 
@@ -248,3 +257,35 @@
 - Next action: Phase 5 as re-scoped — verify by API that air, land, alerts and reports data
   are all exposed, add the coverage table to the spec, commit CP5. Then Phase 6: README,
   offline check, PROGRESS.md final, `TRANSFER.md`, commit CP6.
+
+## SESSION — 2026-11-04 11:30 — unattended agent (build session 6)
+- Entered at: CP4 (verified by `git log --oneline` -> `9e50396 CP4: frontend handoff spec +
+  minimal fallback UI`) and by re-running the suite: 81 tests OK.
+- Work done (Phase 5, revised):
+  - `verify_coverage()` in `make_frontend_spec.py` — 21 rows, each fetched from the running
+    server and asserted: seed counts; S1 the zone_3 hero (turbidity 9.0 NTU, chlorine 0.038,
+    WQI 94.4 Unsafe, coliform present, 5 complaints in CASE-2026-003); S2 the Emergency burst
+    at zone_4; S3 the `flow_changed` maintenance row on zone_2 plus `evidence.flow_changed`;
+    S4 the zone_5 forecast (0.235 mg/L, crossing 0.2 in 21 h, not breached); S5 BUILDING_SIDE
+    at B11; S6 the dust station air_08 (AQI 312.5 Very Poor, PM10 360, 336 h of readings) and
+    its air case; S7 the land_05 dump (photo, 12 days, 40 m², proximity 80 from 4 factors)
+    and its land case; S8 the erosion→`res_hill` cross-link; N0 the four routine complaints
+    that must stay outside every case; and the five alert signals (overdue rule, anomaly z,
+    severity/scope coverage, standards citations, trace hops + worst pipe), map, hotspots,
+    dashboard KPIs, daily report.
+  - `main()` runs the coverage **before** the write endpoints, so the claims describe the
+    seed, not the generator's own writes; a failing row raises SystemExit listing it.
+  - `docs/FRONTEND_SPEC.md` §13 now carries the table plus a signal→endpoint→how-to-render
+    map, so the handoff states what the data supports rather than the UI agent guessing.
+  - Field-name corrections found by probing (the reason the check is worth running): the
+    reading keys are `residual_chlorine_mgl` (not `chlorine_mgl`), the forecast key is
+    `current` (not `now_mgl`), and hotspots are keyed by `node_id`/`score`/`factors` with no
+    `ward` field.
+- Left at: CP5 — gate **PASS** (`coverage: 21/21 scenarios verified through the API`,
+  81 tests OK, spec regenerated at 2,852 lines / 21 routes).
+- Note: `overdue` is 0/6 at the seeded demo clock — every seeded case is created at NOW, so
+  nothing is 2 h actionless yet. The badge appears as soon as the clock advances; §13 states
+  this so the UI does not look broken when it renders a real zero.
+- Next action: Phase 6 — README, the Wi-Fi-off rehearsal of the demo, final PROGRESS.md and
+  `TRANSFER.md`, commit CP6. Final line of the build: "BACKEND COMPLETE — frontend handoff
+  spec at docs/FRONTEND_SPEC.md".
