@@ -505,6 +505,39 @@
           host.appendChild(host2);
         });
 
+        /* reports per day: counted from the served timestamps, never modelled */
+        var dayKey = function (d) {
+          return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2)
+            + '-' + ('0' + d.getDate()).slice(-2);
+        };
+        var perDay = {};
+        complaints.forEach(function (c) {
+          var d = new Date(c.timestamp || c.created_at);
+          if (isNaN(d.getTime())) return;
+          perDay[dayKey(d)] = (perDay[dayKey(d)] || 0) + 1;
+        });
+        var dayKeys = Object.keys(perDay).sort();
+        if (dayKeys.length) {
+          var edge = new Date(dayKeys[dayKeys.length - 1] + 'T12:00:00');
+          var series = [];
+          for (var back = 13; back >= 0; back--) {
+            var d = new Date(edge.getTime());
+            d.setDate(d.getDate() - back);
+            var key = dayKey(d);
+            var shown = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+            series.push({
+              value: perDay[key] || 0,
+              label: shown,
+              tick: back % 3 === 0,
+              title: shown + ': ' + (perDay[key] || 0) + ' reports'
+            });
+          }
+          host.appendChild(NIRI.section('Reports per day',
+            'fourteen days ending on the newest timestamp in /api/complaints — a count of served '
+            + 'rows by their own timestamp, so a quiet day reads as a quiet day and not as missing data',
+            el('div', { class: 'card' }, NIRI.columns(series))));
+        }
+
         /* the funnel, in the order the workflow moves */
         var counts = {};
         cases.forEach(function (c) { counts[c.status] = (counts[c.status] || 0) + 1; });

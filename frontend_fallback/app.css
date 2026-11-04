@@ -635,3 +635,26 @@ button, .btn, .ghost { border-radius: 10px; }
 .chart .focus-dot { stroke: var(--surface); stroke-width: 1.4; }
 .chart .tip-bg { fill: #1B2B22; opacity: .94; }
 .chart .tip-line { fill: #F6F3EA; font-size: 10.5px; font-weight: 600; }
+
+/* columns: a count per day, with the number over the bar it belongs to */
+.columns {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
+  gap: 7px; align-items: end; padding: 6px 2px 0;
+}
+.col { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.col-track {
+  height: 132px; display: flex; align-items: flex-end;
+  border-bottom: 1px solid var(--line);
+}
+.col-bar {
+  width: 100%; border-radius: 5px 5px 0 0; min-height: 2px;
+  background: linear-gradient(180deg, #4A8A63, #2F6B4B);
+}
+.col.is-zero .col-bar { background: var(--line); }
+.col:hover .col-bar { background: linear-gradient(180deg, #C2703C, #A85B2B); }
+.col-val {
+  font-size: 10.5px; font-weight: 700; text-align: center;
+  color: var(--forest); font-variant-numeric: tabular-nums;
+}
+.col.is-zero .col-val { color: #b3aa9c; font-weight: 500; }
+.col-lab { font-size: 9px; text-align: center; color: var(--muted); white-space: nowrap; }

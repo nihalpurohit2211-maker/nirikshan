@@ -403,6 +403,23 @@ window.NIRI = window.NIRI || {};
     }));
   }
 
+  /* Columns for counts over time. DOM bars, not SVG, so the labels stay legible
+     at any width and each column carries its own tooltip. */
+  function columns(items, opts) {
+    opts = opts || {};
+    var max = Math.max.apply(null, items.map(function (i) { return i.value || 0; }).concat([1]));
+    return el('div', { class: 'columns' }, items.map(function (item) {
+      var pct = Math.round((item.value / max) * 100);
+      return el('div', { class: 'col' + (item.value ? '' : ' is-zero'),
+                         title: item.title || (item.label + ': ' + item.value) }, [
+        el('div', { class: 'col-track' },
+          el('div', { class: 'col-bar', style: 'height:' + (item.value ? Math.max(3, pct) : 0) + '%' })),
+        el('div', { class: 'col-val', text: String(item.value) }),
+        el('div', { class: 'col-lab', text: item.tick === false ? '' : item.label })
+      ]);
+    }));
+  }
+
   /* AQI gauge: the arc colour and category are the server's, not computed here. */
   function gauge(aqi, categories) {
     var value = aqi.value;
@@ -484,7 +501,7 @@ window.NIRI = window.NIRI || {};
   NIRI.kv = kv; NIRI.section = section; NIRI.card = card; NIRI.kpi = kpi; NIRI.table = table;
   NIRI.empty = empty; NIRI.note = note; NIRI.loading = loading; NIRI.errorBox = errorBox;
   NIRI.lineChart = lineChart; NIRI.legend = legend; NIRI.sparkline = sparkline;
-  NIRI.bars = bars; NIRI.gauge = gauge;
+  NIRI.bars = bars; NIRI.gauge = gauge; NIRI.columns = columns;
   NIRI.BANDS = BANDS;
   /* true when a served NAQI category name is one of the unhealthy bands. */
   NIRI.isBadAqi = function (category) { return BAD_AQI.indexOf(category) >= 0; };
