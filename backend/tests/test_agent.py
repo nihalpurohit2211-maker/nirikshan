@@ -46,6 +46,7 @@ def _use(stub):
     saved_get, saved_cache = agent.get_provider, dict(agent._provider_cache)
     agent._provider_cache.clear()
     agent._degraded["flag"] = False
+    agent._degraded["error"] = ""
     agent.get_provider = lambda: stub
     saved_mode = agent.provider_mode
 
@@ -60,6 +61,7 @@ def _use(stub):
         agent._provider_cache.update(saved_cache)
         agent.provider_mode = saved_mode
         agent._degraded["flag"] = False
+        agent._degraded["error"] = ""
     return restore
 
 
@@ -85,6 +87,20 @@ class CallContractTest(unittest.TestCase):
             self.assertIsNone(text)
             self.assertEqual(mode, "offline")
             self.assertEqual(len(stub.calls), 2, "one retry, not a retry loop")
+        finally:
+            restore()
+
+    def test_failure_detail_is_kept_without_the_key(self):
+        stub = _Stub(error=RuntimeError("boom"))
+        restore = _use(stub)
+        try:
+            agent.call("sys", "user")
+            self.assertIn("RuntimeError: boom", agent.provider_detail())
+            stub.error = None
+            stub.reply = "recovered"
+            text, mode = agent.call("sys", "user")
+            self.assertEqual((text, mode), ("recovered", "online"))
+            self.assertEqual(agent.provider_detail(), "")
         finally:
             restore()
 
@@ -242,7 +258,21 @@ class ProviderSelectionTest(unittest.TestCase):
         _set_env("LLM_API_KEY", "fake-key")
         provider = agent.build_provider()
         self.assertIsInstance(provider, agent.GeminiProvider)
-        self.assertEqual(provider.model, "gemini-2.5-flash")
+        self.assertEqual(provider.model, "gemini-3.5-flash-lite")
+
+    def test_gemini_sends_key_in_a_header_not_the_url(self):
+        provider = agent.GeminiProvider("secret-key")
+        seen = {}
+
+        def fake_post(url, payload, headers=None):
+            seen["url"] = url
+            seen["headers"] = headers or {}
+            return {"candidates": [{"content": {"parts": [{"text": "ok"}]}}]}
+
+        provider._post = fake_post
+        self.assertEqual(provider.chat("system", "user"), "ok")
+        self.assertNotIn("secret-key", seen["url"])
+        self.assertEqual(seen["headers"].get("x-goog-api-key"), "secret-key")
 
     def test_gemini_accepts_gemini_api_key_alias(self):
         _set_env("LLM_PROVIDER", "gemini")

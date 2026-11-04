@@ -22,7 +22,7 @@ log = logging.getLogger("nirikshan.agent")
 
 GEMINI_BASE = "https://generativelanguage.googleapis.com"
 DEFAULT_BASE_URL = "https://api.groq.com/openai/v1"      # §8.2 table
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite"
 TIMEOUT_DEFAULT = 15
 
 # The enum from the §8.4 extraction prompt. Kept as data so the offline keyword
@@ -149,9 +149,10 @@ class GeminiProvider(_HTTPProvider):
             cfg["responseMimeType"] = "application/json"
         payload = {"contents": [{"role": "user", "parts": parts}],
                    "generationConfig": cfg}
-        url = "%s/v1beta/models/%s:generateContent?key=%s" % (
-            self.base, self.model, self.key)
-        data = self._post(url, payload)
+        url = "%s/v1beta/models/%s:generateContent" % (self.base, self.model)
+        # Auth keys must travel in the header, not the query string: that keeps
+        # them out of URLs and logs, and is the form the current REST docs use.
+        data = self._post(url, payload, headers={"x-goog-api-key": self.key})
         try:
             return data["candidates"][0]["content"]["parts"][0]["text"]
         except (KeyError, IndexError, TypeError):
@@ -221,7 +222,8 @@ _provider_cache = {}
 
 # A network provider that just failed reports itself as offline until one call
 # succeeds, so the UI badge tells the truth about the last answer it showed.
-_degraded = {"flag": False}
+# `error` keeps the last failure for operators; it never contains the key.
+_degraded = {"flag": False, "error": ""}
 
 
 def build_provider(env=None):
@@ -254,9 +256,15 @@ def provider_mode():
     return "offline" if isinstance(get_provider(), OfflineProvider) else "online"
 
 
+def provider_detail():
+    """The last provider failure, for the health payload; empty while healthy."""
+    return _degraded["error"]
+
+
 def _recover():
     """A successful call clears the degraded badge (see provider_mode)."""
     _degraded["flag"] = False
+    _degraded["error"] = ""
 
 
 def call(system, user, json_mode=False):
@@ -280,6 +288,7 @@ def call(system, user, json_mode=False):
             log.warning("agent attempt %d failed (%s): %s",
                         attempt, provider.name, exc)
     _degraded["flag"] = True
+    _degraded["error"] = ("%s: %s" % (type(last_error).__name__, last_error))[:300]
     return None, "offline"
 
 
@@ -303,6 +312,7 @@ def call_vision(system, text, image_bytes, mime="image/jpeg"):
             last_error = exc
             log.warning("agent vision attempt %d failed: %s", attempt, exc)
     _degraded["flag"] = True
+    _degraded["error"] = ("%s: %s" % (type(last_error).__name__, last_error))[:300]
     log.info("vision fell back to metadata only (%s)", last_error)
     return None, "offline"
 

@@ -280,9 +280,13 @@ def health():
                 "SELECT COUNT(*) n FROM complaints").fetchone()["n"],
             "cases": conn.execute("SELECT COUNT(*) n FROM cases").fetchone()["n"],
         }
-        return {"status": "ok", "demo_now": demo_now(conn), "counts": counts,
-                "ai": _agent().provider_mode(),
-                "disclaimer": DISCLAIMER, "data": DATA_LABEL}
+        payload = {"status": "ok", "demo_now": demo_now(conn), "counts": counts,
+                   "ai": _agent().provider_mode(),
+                   "disclaimer": DISCLAIMER, "data": DATA_LABEL}
+        detail = _agent().provider_detail()
+        if detail:
+            payload["ai_detail"] = detail
+        return payload
     finally:
         conn.close()
 
