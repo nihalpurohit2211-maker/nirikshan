@@ -67,11 +67,16 @@ a real model, set these in **Render → Environment** (never in the repo):
 | --- | --- |
 | `LLM_PROVIDER` | `gemini` |
 | `LLM_API_KEY` | your Gemini API key |
-| `LLM_MODEL` | optional; defaults to `gemini-2.5-flash` |
+| `LLM_MODEL` | optional; defaults to `gemini-3.5-flash-lite` |
 | `LLM_BASE_URL` | optional; defaults to the Gemini endpoint |
 
 `GEMINI_API_KEY` and `GOOGLE_API_KEY` are accepted as aliases for `LLM_API_KEY`, so either
-name works. Save the variables and wait for the service to restart.
+name works. The Blueprint does not pin `LLM_PROVIDER`, so the dashboard value is the one
+the service uses. Save the variables and wait for the service to restart.
+
+If `/api/health` reports `"ai":"offline"` after a call, it also carries an `ai_detail`
+string with the last provider error (never the key). That is the quickest way to tell a
+bad model id, a revoked key, or a quota failure apart.
 
 ## Verification after deploy
 

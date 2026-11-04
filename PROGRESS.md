@@ -544,3 +544,19 @@ tests cover the alias and the precedence. `docs/DEPLOY.md` now documents the liv
 variables and what `/api/health` and `/api/ask` report when the provider is online.
 
 `PY -m unittest discover -s backend/tests` -> **95 tests, OK** .
+
+### Hosted AI: auth keys and the current model
+
+Two more causes kept the hosted Ask page on the offline answer:
+
+- `render.yaml` pinned `LLM_PROVIDER: offline`, so a Blueprint sync could overwrite the
+  dashboard value. The Blueprint now leaves the provider unset; the code default is still
+  offline, and the dashboard value wins when one is present.
+- `gemini-2.5-flash` is deprecated and API access is limited to projects that already used
+  it. New AI Studio keys are auth keys (`AQ.` prefix) and need a current model. The default
+  is now `gemini-3.5-flash-lite`, and the key travels in the `x-goog-api-key` header rather
+  than the query string, matching the current REST docs and keeping it out of URLs/logs.
+
+`/api/health` also carries an `ai_detail` string after a provider failure, so the last
+error is visible without opening the Render log (the key is never included). Verified
+locally: `PY -m unittest discover -s backend/tests` -> **97 tests, OK** .
