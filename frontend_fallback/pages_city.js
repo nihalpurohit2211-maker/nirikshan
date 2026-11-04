@@ -234,6 +234,47 @@ window.NIRI = window.NIRI || {};
         ]);
         page.appendChild(hero);
 
+        /* ------------------------------------- the last 24 hours of reports */
+        var clock = new Date(overview.demo_now);
+        var reportRows = (complaints && complaints.complaints) || [];
+        if (!isNaN(clock.getTime()) && reportRows.length) {
+          var bins = [];
+          for (var hh = 0; hh < 24; hh++) bins.push(0);
+          var edgeHour = new Date(clock.getTime());
+          edgeHour.setMinutes(0, 0, 0);
+          reportRows.forEach(function (c) {
+            var d = new Date(c.timestamp || c.created_at);
+            if (isNaN(d.getTime())) return;
+            var slot = 23 - Math.floor((edgeHour.getTime() - d.getTime()) / 3600000);
+            if (slot >= 0 && slot < 24) bins[slot] += 1;
+          });
+          var total = bins.reduce(function (a, b) { return a + b; }, 0);
+          var peak = Math.max.apply(null, bins);
+          var hourly = bins.map(function (v, i) {
+            var d = new Date(edgeHour.getTime() - (23 - i) * 3600000);
+            var label = ('0' + d.getHours()).slice(-2) + ':00';
+            return { value: v, label: i % 6 === 0 ? label : '',
+                     tick: true,
+                     title: label + ' · ' + v + ' report' + (v === 1 ? '' : 's') };
+          });
+          page.appendChild(el('section', { class: 'card pulse-card' }, [
+            el('div', { class: 'pulse-head' }, [
+              el('div', {}, [
+                el('h3', { text: 'The last 24 hours' }),
+                el('p', { class: 'sub', text: 'resident reports by the hour they were filed — '
+                  + 'each column is a served row, so a flat hour is a quiet hour' })
+              ]),
+              el('div', { class: 'pulse-figs' }, [
+                el('span', { class: 'pulse-fig' }, [el('b', { text: String(total) }),
+                  el('span', { text: 'reports' })]),
+                el('span', { class: 'pulse-fig' }, [el('b', { text: String(peak) }),
+                  el('span', { text: 'busiest hour' })])
+              ])
+            ]),
+            NIRI.columns(hourly, { tight: true })
+          ]));
+        }
+
         /* ------------------------------------------------------------- map */
         var MAP_MODES = [
           { key: 'water', label: 'Water' },

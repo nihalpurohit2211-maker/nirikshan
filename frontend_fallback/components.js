@@ -408,7 +408,7 @@ window.NIRI = window.NIRI || {};
   function columns(items, opts) {
     opts = opts || {};
     var max = Math.max.apply(null, items.map(function (i) { return i.value || 0; }).concat([1]));
-    return el('div', { class: 'columns' }, items.map(function (item) {
+    return el('div', { class: 'columns' + (opts.tight ? ' is-tight' : '') }, items.map(function (item) {
       var pct = Math.round((item.value / max) * 100);
       return el('div', { class: 'col' + (item.value ? '' : ' is-zero'),
                          title: item.title || (item.label + ': ' + item.value) }, [
