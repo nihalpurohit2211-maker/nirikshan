@@ -201,21 +201,27 @@
 
   function proximityBlock(prox, weights) {
     if (!prox) return NIRI.empty('no proximity served for this site');
+    var factors = prox.factors || [];
+    var met = factors.filter(function (f) { return f.met; }).length;
     var host = el('div');
     host.appendChild(el('div', { class: 'prox' }, [
       el('b', { text: String(prox.score) }),
-      el('span', { class: 'small muted', text: (prox.factors || []).length + ' factors · '
-                   + (weights ? 'capped at ' + weights.cap : 'weights from /api/land/reports') })
+      el('span', { class: 'small muted', text: met + ' of ' + factors.length + ' factors met'
+                   + (weights ? ' · capped at ' + weights.cap : '') })
     ]));
-    host.appendChild(el('ul', { class: 'factors' }, (prox.factors || []).map(function (f) {
-      return el('li', {}, [
-        NIRI.badge(f.met ? '+' + f.points : 'not met', f.met ? 'high' : 'plain'),
-        ' ' + f.label,
-        f.days ? el('span', { class: 'small muted', text: ' (' + f.days + ' days observed)' }) : null,
-        f.nearest ? el('div', { class: 'small muted', text: 'nearest ' + f.nearest.kind.replace(/_/g, ' ')
-          + ' “' + f.nearest.feature + '” at ' + Math.round(f.nearest.distance_m) + ' m' }) : null
-      ]);
-    })));
+    /* the score is the headline; the working is one click away, not six rows of the card */
+    host.appendChild(el('details', { class: 'prox-details' }, [
+      el('summary', { text: 'why this score' }),
+      el('ul', { class: 'factors' }, factors.map(function (f) {
+        return el('li', {}, [
+          NIRI.badge(f.met ? '+' + f.points : 'not met', f.met ? 'high' : 'plain'),
+          ' ' + f.label,
+          f.days ? el('span', { class: 'small muted', text: ' (' + f.days + ' days observed)' }) : null,
+          f.nearest ? el('div', { class: 'small muted', text: 'nearest ' + f.nearest.kind.replace(/_/g, ' ')
+            + ' “' + f.nearest.feature + '” at ' + Math.round(f.nearest.distance_m) + ' m' }) : null
+        ]);
+      }))
+    ]));
     return host;
   }
 

@@ -730,3 +730,14 @@ button, .btn, .ghost { border-radius: 10px; }
   gap: 8px; font-size: 11.5px;
 }
 .card.station .bars .b > span:last-child { text-align: right; white-space: nowrap; }
+
+/* the land score is a headline; its working is a disclosure */
+.prox-details { margin-top: 6px; }
+.prox-details > summary {
+  cursor: pointer; font-size: 11px; font-weight: 650; color: var(--forest);
+  letter-spacing: .02em; list-style: none;
+}
+.prox-details > summary::-webkit-details-marker { display: none; }
+.prox-details > summary::before { content: "▸ "; color: var(--muted); }
+.prox-details[open] > summary::before { content: "▾ "; }
+.prox-details[open] > summary { margin-bottom: 6px; }
