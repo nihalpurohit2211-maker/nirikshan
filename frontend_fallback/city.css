@@ -419,6 +419,65 @@
   .city-stat, .hotspot, .bm-zone { transition: none; }
 }
 
+/* ---------------------------------------------------------------- dashboard pass
+   The dashboard uses a quieter operational surface: hierarchy comes from spacing,
+   borders, and type scale rather than a large promotional hero. Data and actions
+   remain the same; this is presentation-only. */
+.city-page { gap: 20px; }
+.city-hero {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 22px 24px;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, .92fr);
+  gap: 24px;
+}
+.city-hero::after { display: none; }
+.city-eyebrow { color: var(--forest); margin-bottom: 7px; font-size: 10px; }
+.city-display { color: var(--ink); font-size: clamp(25px, 2.4vw, 32px); margin-bottom: 8px; }
+.city-display em { color: var(--forest); }
+.city-lede { color: var(--muted); font-size: 13px; line-height: 1.55; margin-bottom: 13px; }
+.city-live { color: var(--muted); font-size: 11px; }
+.city-live-dot { background: var(--good); box-shadow: 0 0 0 4px rgba(47, 155, 92, .12); }
+.city-stats { gap: 8px; }
+.city-stat {
+  background: var(--page);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  padding: 12px 13px 11px;
+}
+.city-stat:hover { background: var(--forest-tint); border-color: var(--forest-tint-2); color: var(--ink); }
+.city-stat .k { color: var(--muted); font-size: 9px; }
+.city-stat .v { color: var(--ink); font-size: 24px; }
+.city-stat .m { color: var(--muted); font-size: 10px; }
+.city-map-grid, .city-lower { gap: 20px; }
+.city-map-card, .city-side, .city-panel, .city-mini, .city-net { box-shadow: var(--shadow); }
+.city-map-head, .city-net-head { padding: 17px 18px 0; }
+.city-map-head h3, .city-net-head h3, .city-panel-head h3, .city-mini h3 { color: var(--ink); }
+.city-map-body { padding: 4px 10px 10px; }
+.city-side { padding: 17px 18px 15px; }
+.city-side-head { padding-bottom: 2px; }
+.city-side-head h3 { color: var(--ink); }
+.city-panel, .city-mini { padding: 17px 18px 15px; }
+.city-panel-head { margin-bottom: 13px; }
+.city-panel-head .sub, .city-map-head .sub, .city-net-head .sub, .city-mini .sub { color: var(--muted); }
+.city-table-wrap .card-table { border-color: var(--line); }
+.city-net-body { padding: 4px 10px 10px; }
+
+@media (max-width: 980px) {
+  .city-hero { grid-template-columns: minmax(0, 1fr); padding: 20px; }
+}
+@media (max-width: 760px) {
+  .city-page { gap: 14px; }
+  .city-hero { padding: 18px; }
+  .city-display { font-size: 25px; }
+  .city-map-head, .city-net-head { padding-left: 15px; padding-right: 15px; }
+  .city-map-foot { padding-left: 15px; padding-right: 15px; }
+}
+
 /* ---------------------------------------------------- network map, second pass */
 .heat-layer { filter: blur(10px); opacity: .42; mix-blend-mode: multiply;
   pointer-events: none; transition: opacity .25s ease; }

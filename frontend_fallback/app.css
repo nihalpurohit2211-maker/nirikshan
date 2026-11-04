@@ -4,23 +4,23 @@
    System fonts only, no @import, no CDN, no external assets — works with the network off. */
 
 :root {
-  --forest: #14532d;
-  --forest-hover: #166534;
+  --forest: #1f5e3f;
+  --forest-hover: #174b32;
   --sage: #6b8f71;
-  --page: #f7f5ef;
-  --surface: #fffdf7;
-  --ink: #1c1917;
-  --muted: #6b7280;
-  --line: #e7e3d8;
-  --water: #0e7490;
-  --amber: #b45309;
-  --danger: #b91c1c;
-  --good: #15803d;
-  --acceptable: #a16207;
-  --poor: #c2410c;
-  --unsafe: #b91c1c;
-  --radius: 14px;
-  --shadow: 0 1px 2px rgba(28, 25, 23, .04), 0 12px 28px rgba(28, 25, 23, .06);
+  --page: #f7faf8;
+  --surface: #ffffff;
+  --ink: #1b2b22;
+  --muted: #65736b;
+  --line: #dfe9e2;
+  --water: #19758a;
+  --amber: #a96b00;
+  --danger: #c43d34;
+  --good: #2f9b5c;
+  --acceptable: #9bbd7d;
+  --poor: #c98519;
+  --unsafe: #c43d34;
+  --radius: 12px;
+  --shadow: 0 1px 2px rgba(27, 43, 34, .03), 0 10px 24px rgba(27, 43, 34, .05);
 
   /* derived tints — no new hues, just dilutions of the tokens above */
   --forest-tint: #eaf1ea;
@@ -125,7 +125,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 #main { display: flex; flex-direction: column; min-width: 0; }
 #topbar {
   display: flex; justify-content: space-between; align-items: flex-end; gap: 16px;
-  padding: 24px 24px 14px;
+  padding: 18px 24px 12px;
 }
 .topbar-right { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .reqid { font: var(--fs-xs)/1.4 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; word-break: break-all; }
