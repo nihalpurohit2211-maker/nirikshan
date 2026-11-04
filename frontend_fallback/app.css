@@ -700,3 +700,10 @@ button, .btn, .ghost { border-radius: 10px; }
 .columns.is-tight .col-bar { border-radius: 3px 3px 0 0; }
 .columns.is-tight .col-val { font-size: 9.5px; }
 .columns.is-tight .col-lab { font-size: 8.5px; }
+
+/* the tracker's free text is evidence, not a column to be read line by line */
+.card-table td .clamp {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; max-width: 54ch; line-height: 1.45;
+}
+.card-table tr:hover td .clamp { -webkit-line-clamp: 4; }

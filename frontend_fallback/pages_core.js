@@ -644,7 +644,8 @@ window.NIRI = window.NIRI || {};
         { label: 'domain', get: function (c) { return c.domain; } },
         { label: 'where', get: function (c) { return nodeLink(c.node_id, api.nodeName(c.node_id)); } },
         { label: 'category', get: function (c) { return c.category; } },
-        { label: 'report', get: function (c) { return c.text; } },
+        { label: 'report', get: function (c) {
+            return el('span', { class: 'clamp', title: c.text, text: c.text }); } },
         { label: 'status', get: function (c) { return NIRI.statusBadge(c.status); } },
         { label: 'in case', get: function (c) {
             var ids = map[c.id];
