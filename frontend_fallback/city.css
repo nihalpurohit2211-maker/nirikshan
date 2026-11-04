@@ -475,3 +475,14 @@
 .map-layer-row:hover, .map-layer-row:focus-within { background: var(--forest-tint);
   color: var(--forest); }
 .map-layer-row input { width: auto; margin: 0; accent-color: var(--forest); }
+
+/* optional Google basemap under the same chrome */
+.map-wrap .gmap { position: absolute; inset: 0; z-index: 2; border-radius: inherit;
+  background: var(--page-sunk); }
+.map-wrap.google-on .map-svg { visibility: hidden; }
+.map-google-status {
+  position: absolute; z-index: 5; left: 50%; top: 14px; transform: translateX(-50%);
+  background: var(--surface); border: 1px solid var(--line); border-radius: 999px;
+  padding: 5px 12px; font-size: 11.5px; color: var(--muted); box-shadow: var(--shadow);
+}
+.gmap-info { font-family: var(--mono); font-size: 11.5px; color: #1c1917; }

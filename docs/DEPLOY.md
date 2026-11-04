@@ -101,3 +101,35 @@ The build brief prizes a fully offline, loopback-only demo. Hosting it does not 
 the code or the data — the same synthetic seed and the same offline agent run — but the
 deployment now depends on a third-party platform being awake. Keep the local
 `uvicorn` path as the primary demo and treat the hosted URL as a convenience for judges.
+
+## Optional: a real basemap (Google Maps)
+
+The schematic SVG map is the product and works with no key. A Google Maps
+JavaScript key adds a **Layers → real basemap** switch; it never replaces the
+schematic on its own, so a bad key or a dead network cannot blank the demo.
+
+Set **one** of these on the service (Render → Environment), or locally in a
+git-ignored `.env`:
+
+```
+GOOGLE_MAPS_API_KEY=...      # preferred
+GMAPS_API_KEY=...            # alias
+MAPS_API_KEY=...             # alias
+```
+
+`GET /api/map-config` then reports `{"provider": "google", ...}`; without a key it
+reports `schematic`. The key is a **browser** key by design (it ships in the
+page) — restrict it by HTTP referrer to `http://localhost:8011/*` plus your
+hosted origin, and enable **Maps JavaScript API** with billing on the project.
+
+Run locally with the key loaded from the file, never from the command line:
+
+```bash
+set -a; source .env; set +a
+./.venv/Scripts/python.exe -m uvicorn backend.app:app --host 127.0.0.1 --port 8011
+```
+
+Overlays drawn in Google mode come from the same payloads as everything else:
+ward polygons from `/api/wards`, pipes and node colours from `/api/network`, and
+a heat layer weighted by the served WQI. The Trace Upstream red path stays on the
+schematic map; in Google mode the trace panel still lists every hop.

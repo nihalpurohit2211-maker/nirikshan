@@ -148,6 +148,12 @@ window.NIRI = window.NIRI || {};
           onSelect: function (node) { openNodePanel(node.id); },
           onTraceStep: function (step) { openNodePanel(step.node_id); }
         });
+        /* optional Google basemap: adds a switch only when /api/map-config
+           reports a key, and never replaces the schematic on its own. */
+        if (NIRI.mapGoogle) NIRI.mapGoogle.offer(map.element, {
+          nodes: network.nodes, pipes: network.pipes,
+          onSelect: function (node) { openNodePanel(node.id); }
+        });
 
         host.appendChild(el('div', { class: 'split-rail section', style: '--rail:340px' }, [
           el('div', {}, [map.element,

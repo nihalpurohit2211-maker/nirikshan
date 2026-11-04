@@ -6,3 +6,8 @@ node_modules/
 dist/
 *.pyc
 data/images/upload_*
+
+# local secrets — never committed
+.env
+*.key
+.env.local
