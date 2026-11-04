@@ -9,8 +9,11 @@
 - [x] Phase 1 — `schema.sql`, `seed.py`, `verify_seed.py`, demo numbers contract → **CP1** (31 checks, 0 failures)
 - [x] Phase 2 — backend core modules + API + tests green on 8010 → **CP2** (50 tests, OK)
 - [x] Phase 3 — `agent.py` + offline fallback, DRAFT stamp → **CP3** (81 tests, OK; draft = DRAFT)
-- [ ] Phase 4 — `frontend_fallback/index.html` (first) + React app builds → **CP4**
-- [ ] Phase 5 — air + land + reports wired, all scenarios walk through → **CP5**
+- [ ] Phase 4 — **scope changed by the user:** frontend is handed to another agent. No React
+      app, no npm. Deliverables = minimal `frontend_fallback/index.html` + generated
+      `docs/FRONTEND_SPEC.md` / `docs/openapi.json` → **CP4**
+- [ ] Phase 5 — **scope changed:** verify by API that air, land, alerts and reports data are
+      exposed, and that the spec lists everything the UI needs → **CP5**
 - [ ] Phase 6 — README, rehearsal, offline check, submission, `TRANSFER.md` → **CP6**
 
 ## Environment notes (read before running any command)
@@ -110,6 +113,14 @@
   **Watch stale servers:** a smoke server left listening on 8000 answers the next smoke
   run with yesterday's code. `netstat -ano | grep :8000 | grep LISTENING` before and after,
   and kill by PID (`taskkill //PID n //F`; Git Bash here has no `pkill`).
+- **Gate 4 (revised scope):** `PY make_frontend_spec.py` -> `docs/openapi.json` (live
+  schema) + `docs/FRONTEND_SPEC.md` (21 routes, one real captured response each) — the
+  generator boots the app on 8010 against a **temp copy** of the DB, so the examples
+  include the write endpoints without touching `nirikshan.db`. `PY -m unittest discover
+  -s backend/tests` -> **Ran 81 tests, OK**. Smoke on **8000**: `GET /` serves
+  `frontend_fallback/index.html` (200, text/html) and the browser screenshot shows the
+  KPI cards filled from the live API (`2026-11-03 09:00:00`, 6 open cases, AI `offline`).
+  A stale smoke server from the previous session was found holding 8000 and killed.
 
 ---
 
@@ -209,3 +220,31 @@
   pin §3 versions, `npm install`, React app (theme tokens §9.2, pages §9.3-§9.6). Gate 4:
   `npm run build` exit 0 + the fallback UI walks the demo on 8000. If `npm install` fails
   offline -> BLOCKED.md + keep the fallback UI + skip to Phase 5.
+
+## SESSION — 2026-11-04 10:20 — unattended agent (build session 5)
+- Entered at: CP3 (verified by `git log --oneline` -> `030444c CP3: AI agent with offline
+  fallback`) and by re-running the suite: 81 tests OK.
+- **Scope change from the user:** the frontend is handed to another agent. Phases 4-6 were
+  re-scoped — no React app, no `npm`, no full UI. Phase 4 = minimal fallback page +
+  `docs/FRONTEND_SPEC.md`; Phase 5 = verify by API that air/land/alerts/reports are exposed
+  and that the spec lists everything the UI needs; Phase 6 unchanged.
+- Work done (Phase 4, revised):
+  - `frontend_fallback/index.html` — a single-file "backend live, UI handoff in progress"
+    page so `/` never 404s. It uses the §9.2 tokens, fills four KPI cards from
+    `/api/overview` + `/api/health`, links the live endpoints and lists the demo path.
+  - `make_frontend_spec.py` — the handoff generator. Boots the app on **8010 against a temp
+    copy** of `nirikshan.db` (reuses `backend/tests/base.py`), writes `docs/openapi.json`
+    from the live `/openapi.json`, then calls all 21 routes in demo order — including the
+    write ones, which is why the temp copy matters — and emits `docs/FRONTEND_SPEC.md`:
+    the five UI rules, run/serving/token/page/map prose, a route index, per-endpoint
+    parameter tables read out of the OpenAPI schema, and one real captured response each.
+    List payloads are sampled and long strings cut, with the exact row counts noted under
+    every example, so the doc is readable without lying about shapes.
+- Left at: CP4 — gate **PASS** (81 tests OK; `GET /` on 8000 serves the fallback page and
+  the browser screenshot shows the KPI cards filled with live values).
+- Note for the next agent: the spec is **generated**. Editing `docs/FRONTEND_SPEC.md` by
+  hand is lost on the next run; change `make_frontend_spec.py` (prose in `PROSE`, calls in
+  `read_endpoints`/`write_endpoints`) and re-run.
+- Next action: Phase 5 as re-scoped — verify by API that air, land, alerts and reports data
+  are all exposed, add the coverage table to the spec, commit CP5. Then Phase 6: README,
+  offline check, PROGRESS.md final, `TRANSFER.md`, commit CP6.
