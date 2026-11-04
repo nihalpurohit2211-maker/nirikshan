@@ -1,15 +1,15 @@
-# TRANSFER — Nirikshan, handoff at CP6
+# TRANSFER — Nirikshan, handoff after the visual pass
 
-Written 2026-11-04 by the unattended build agent. Read this first if you are picking the
-project up — human or agent. `PROGRESS.md` is the session log; `PLAN.md` is the spec;
-`README.md` is the user-facing doc. Nothing here is a summary of code you can read in ten
-seconds, and nothing is a placeholder.
+Written 2026-11-04 by the unattended build agent, updated after the visual-first pass.
+Read this first if you are picking the project up — human or agent. `PROGRESS.md` is the
+session log; `PLAN.md` is the spec; `README.md` is the user-facing doc;
+`docs/PHASE2_VISUAL_PASS.md` records the presentation pass in full.
 
 ## 1. Status
 
-**CP6 reached. All seven phases of `PLAN.md` are complete, and the §16 definition of done
-passes on all four commands.** No item on the §14 cut list was cut. No `BLOCKED.md` exists —
-nothing had to be worked around.
+**CP6 reached, then a presentation pass on top. All seven phases of `PLAN.md` are complete,
+the §16 definition of done passes, and the visual pass is closed with all gates green.** No
+item on the §14 cut list was cut. No `BLOCKED.md` exists — nothing had to be worked around.
 
 Checkpoint trail (each one committed with tests green at the time):
 
@@ -25,7 +25,8 @@ Checkpoint trail (each one committed with tests green at the time):
 | CP5b | `dab6caf` | the full nine-page offline UI, verified twice in a browser |
 | CP6 | `4b11ba2` | README, final PROGRESS.md, this file, regenerated spec |
 | CP6a | `ff80a63` + `e61bafa` | Gate 6c: the audit's two residual derived claims removed from the UI |
-| CP6b | this commit | Gate 6d: the band→colour tables measured against the live payload and left as legend-only fallbacks |
+| CP6b | `e61bafa` | Gate 6d: the band→colour tables measured against the live payload and left as legend-only fallbacks |
+| VP | `2d509fa`…`e3370de` | visual pass: design system, landing, city overview, shared basemap, Ask Nirikshan |
 
 After CP5b the UI was audited against the served payloads rather than the rendered page, which
 found twelve defects the walkthroughs could not see (a pollutant-key mismatch that silently
@@ -45,14 +46,18 @@ item — the local band→colour tables — was measured rather than argued: eve
 carries its own `colour` and the hexes match those tables exactly, so they survive only as the
 legend and a colourless-row fallback (`PROGRESS.md`, Gate 6d).
 
-**Exact last gate output** (fresh seed, server on 8000 under the blackhole proxy, no LLM key):
+**Exact last gate output** (fresh seed, live server on 8000, no LLM key):
 
 ```
 $ PY verify_seed.py | tail -1
 31 checks, 0 failures
 
 $ PY -m unittest discover -s backend/tests | tail -2
-Ran 81 tests in 3.567s
+Ran 93 tests in ~5s
+OK
+
+$ PY -m unittest discover -s backend/tests -p test_ask.py | tail -2
+Ran 12 tests in ~1s
 OK
 
 $ PY rehearse_demo.py | tail -3
@@ -69,6 +74,11 @@ $ curl -s http://127.0.0.1:8000/api/health
 {"status":"ok","demo_now":"2026-11-03 09:00:00","counts":{"nodes":98,"pipes":78,"sensors":27,
 "readings":5712,"complaints":20,"cases":8},"ai":"offline", ...}
 ```
+
+Two suites can now run **at the same time**: `backend/tests/base.py` binds a socket to
+`127.0.0.1:0` before uvicorn and passes it to `server.run(sockets=[...])`, so each process gets
+its own free port and its own temp DB. Verified with `test_ask.py` and the full suite running
+concurrently: 12 OK and 93 OK.
 
 The database in the working tree is **pristine** (20 complaints, 8 cases, nothing filed or
 approved by the walkthroughs) — restore it that way after any rehearsal, because the demo
@@ -101,9 +111,9 @@ py -3.12 -m venv .venv
 
 # 3. one process serves the API and the UI
 ./.venv/Scripts/python.exe -m uvicorn backend.app:app --host 127.0.0.1 --port 8000
-# open http://127.0.0.1:8000/
+# open http://127.0.0.1:8000/  ->  lands on #/welcome; pick Officer, or use #/?role=officer
 
-# 4. tests (they boot their own copy on 8010 — never run them against the 8000 demo DB)
+# 4. tests (their own free port + temp DB — never run them against the 8000 demo DB)
 ./.venv/Scripts/python.exe -m unittest discover -s backend/tests
 
 # 5. the whole demo as a script, against the running server
@@ -171,35 +181,39 @@ backend/rules.py        the issue-identity engine: clustering, severity, scope, 
 backend/standards.py    standards rows from docs/ + config, each carrying its citation
 backend/agent.py        provider-agnostic drafting; deterministic offline template when no key,
                         and it never returns a verdict — only prose about a rules finding
+backend/ask.py          offline evidence answer: readings + standards + open cases, with citations
 backend/db.py           sqlite access, one bulk read per screen (no N+1 anywhere)
-backend/app.py          FastAPI app: 20 paths, the {"detail": …} envelope, X-Request-Id on every
+backend/app.py          FastAPI app: 21 paths, the {"detail": …} envelope, X-Request-Id on every
                         response, static mount of the UI, demo clock = MAX(readings.timestamp)
-backend/tests/          81 tests on port 8010 against a temp copy of the seeded DB
+backend/tests/          93 tests on a free port against a temp copy of the seeded DB
 ```
 
 ### Frontend — `frontend_fallback/`, the whole UI, plain ES5 + SVG
 
 ```
-index.html              shell: nav with live counters, banner, footer, slide-over panel host;
-                        loads six scripts in dependency order, relative paths only
-app.css                 PLAN §9.2 theme tokens; the [hidden] rule that keeps the panel overlay
-                        from painting on every page; the flow/trace/pulse animations
-api.js                  fetch wrapper, per-screen cache, X-Request-Id capture, and the node-name
-                        cache that network() now fills (so no screen shows a bare id)
-components.js           el()/clear/table/badge/stat-card/timeline/errorBox — the only widgets
-                        the pages compose; errorBox renders the server's own words
-map.js                  the signature screen: SVG tree of 98 nodes / 78 pipes, drag-pan,
-                        wheel/±zoom, four layer toggles, animated flow, trace highlighting,
-                        decay-k width on the worst pipe and the red pulse marker
-pages_core.js           dashboard (#/), network map (#/map), complaints (#/complaints),
-                        cases list (#/cases), case detail (#/cases/<id>), node detail
-                        (#/nodes/<id>) — incl. evidence, standards, trace, draft/approve panels
+index.html              shell: nav with live counters, banner, footer, slide-over panel host,
+                        role chip, Ask FAB; loads ten scripts + four stylesheets, relative only
+app.css                 design tokens, real tables with sticky headers, split rail (collapses
+                        below 1180 px), the [hidden] rule, flow/trace/pulse animations
+landing.css             landing page, shell collapse, role chip
+city.css                city overview, basemap ink, network-map overrides
+ask.css                 ask page, hero, chips, FAB
+api.js                  fetch wrapper, per-screen cache, X-Request-Id capture, node-name cache
+components.js           el()/clear/table(.table-scroll)/badge/stat-card/timeline/errorBox
+basemap.js              one hand-authored schematic Mumbai basemap, no tiles or images
+map.js                  SVG tree on the shared basemap: drag-pan, wheel/±zoom, layers,
+                        animated flow, trace highlighting, decay-k width, red pulse marker
+pages_city.js           city overview (#/) — served KPIs, ward map with Water/Air/
+                        Complaints/All layers, triage table, hotspots, air and network preview
+pages_core.js           network map (#/map), complaints (#/complaints), cases list,
+                        case detail (#/cases/<id>), node detail (#/nodes/<id>) — evidence,
+                        standards, trace, draft/approve, and the "Explain this case" link
 pages_domains.js        air (#/air), land (#/land), reports (#/reports) — gauges, 24 h PM
-                        projection, photo + proximity weights, cross-domain banner, funnel,
-                        daily summary and the sign-off queue
-app.js                  hash router for the nine pages plus two deep links (#/map?t=<case>,
-                        #/map?n=<node>), an unknown hash that renders the server's 404
-                        envelope, and the nav click that re-reads the current page
+                        projection, photo + proximity weights, cross-domain banner, funnel
+pages_landing.js        demo role picker (#/welcome), localStorage['niri.role'] only
+pages_ask.js            Ask Nirikshan (#/ask, #/ask?case=<id>) transcript and prefill
+app.js                  hash router + role gate: #/welcome, #/ (city), #/map?t=<case>,
+                        #/map?n=<node>, #/ask?case=<id>; unknown hash renders the 404 envelope
 ```
 
 Every number on every screen comes from the server. The UI holds no threshold, no rule, and
@@ -215,6 +229,8 @@ docs/FRONTEND_SPEC.md        pages §5, SVG map §6, §10 demo script, §11 fift
                              items (all ticked, all browser-verified), §12 truth
                              rules, §13 coverage table generated from the live server
 docs/openapi.json            the API contract, generated from the same live server
+docs/PHASE2_VISUAL_PASS.md   the presentation pass: scope, routes, contracts, fixes, gates,
+                             limitations, commits — the up-to-date map of the UI layer
 ```
 
 ## 4. What remains
@@ -242,12 +258,12 @@ Known bugs: none open. Two behaviours that look like bugs and are not:
 
 ## 5. Demo script (3 minutes, ready to rehearse)
 
-Server on 8000, fresh seed, browser at `http://127.0.0.1:8000/#/`. Say the numbers; they are
-served, so they will not change.
+Server on 8000, fresh seed, browser at `http://127.0.0.1:8000/#/welcome` (pick Officer, or
+open `#/?role=officer`). Say the numbers; they are served, so they will not change.
 
 | Time | Do this | Say this |
 |---|---|---|
-| 0:00 | Dashboard. Point at the worst-water card. | "Six open cases. Ward 3 scores 94.4 — the server calls that Unsafe, not the browser." |
+| 0:00 | City overview. Point at the worst-water card and the ward map. | "Six open cases. Ward 3 scores 94.4 — the server calls that Unsafe, not the browser. The map colours are the served bands too." |
 | 0:15 | Click the Zone-3 row → case detail. | "Five separate complaints, turbidity 8.962 NTU, chlorine 0.0382, coliform present. A z-score of 151 against its own 14-day baseline — this is not noise." |
 | 0:30 | Complaints → pick B21 → paste "Brown water from the tap since 3 days, smells of sewage" → File. | "A report is a sensor reading. The assistant reads the text, the engine finds the nearest sensor — Ward 3, 231 m — and it joins CASE-2026-003." Press **Run clustering** twice: "Idempotent. Nothing new appeared." |
 | 0:45 | Case detail → Evidence panel. | "Shared cause, the rule verbatim — place, time, behaviour — confidence 0.9 on the server's own 0–1 scale, and the readings sit beside the limits with the server's own breach flags." |
@@ -257,6 +273,7 @@ served, so they will not change.
 | 2:20 | Cases → CASE-2026-004. | "Act two: a burst. Emergency, and the OVERDUE badge is the server's two-hour rule — nobody waited for a timer." |
 | 2:40 | Draft advisory → Approve → Investigating → Action Taken. | "The model writes this wording, stamped DRAFT. It becomes real only when a named officer signs, and the status can move one step — the whitelist is the server's." |
 | 2:50 | History. | "Engine, agent, officer — who did what, when, with the note. That is the audit trail a municipality actually needs." |
+| 2:55 | Ask Nirikshan (FAB or `#/ask`). Ask "Why is Ward 3 unsafe?" | "Offline, from the served readings and the standard we transcribed — Ward 3, WQI 94.4 Unsafe, three breaches, with doc, case and node citations. Same numbers as the screens." |
 | +15 s | Air: worst gauge + projection. | "air_08 at NAQI 312.5, PM10 360 heading to 386.9 in 24 hours." |
 | +15 s | Land: photo, score, cross-link. | "Proximity 80 from four published weights — school, water body, road, how long it has stood — and this erosion report is why a reservoir's turbidity is rising." |
 
@@ -264,8 +281,9 @@ Then `PY rehearse_demo.py` if you want the same path proved without a browser.
 
 ## 6. Handoff — do this first
 
-1. `git log --oneline -1` should show the CP6 commit; `git status --short` should be clean
-   apart from generated files that are gitignored (`nirikshan.db`, `*.log`, `data/images/upload_*`).
+1. `git log --oneline -1` should show the visual-pass fixes/doc commit; `git status --short`
+   should be clean apart from generated files that are gitignored (`nirikshan.db`, `*.log`,
+   `data/images/upload_*`).
 2. Run the four definition-of-done commands in §2 above, in that order. If step 2's
    `verify_seed.py` is not **31 checks, 0 failures**, do not touch the UI — the seed moved and
    every number in §13, the README and the demo script above is now wrong.

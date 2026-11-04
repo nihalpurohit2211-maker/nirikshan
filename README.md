@@ -34,7 +34,9 @@ py -3.12 -m venv .venv                                       # or python3 -m ven
 ```
 
 Then open **http://127.0.0.1:8000/** — the API and the UI are the same process, so there is
-no second server, no `npm install`, and no build step. On Linux use `./.venv/bin/python`.
+no second server, no `npm install`, and no build step. A cold visit lands on `#/welcome`,
+the demo role picker; pick **Officer** for the full desk, or open
+`http://127.0.0.1:8000/#/?role=officer` to skip the picker. On Linux use `./.venv/bin/python`.
 
 Nothing else is required. The three pinned packages are the only dependencies; the rest is
 the standard library.
@@ -43,7 +45,7 @@ the standard library.
 
 ```bash
 PY seed.py && PY verify_seed.py                     # 31 checks, 0 failures
-PY -m unittest discover -s backend/tests            # Ran 81 tests ... OK
+PY -m unittest discover -s backend/tests            # Ran 93 tests ... OK
 PY -m uvicorn backend.app:app --port 8000           # API + UI serve from one process
 PY rehearse_demo.py                                 # 17/17 beats, exit 0, on the running server
 ```
@@ -61,7 +63,7 @@ deterministic, so they do not drift between rehearsals.
 
 | Time | What you do | What the screen says |
 |---|---|---|
-| 0:00 | Dashboard | 6 open cases, worst water quality **94.4 (Unsafe)** at Ward 3 - Khadki Old Town, 18 complaints in 24 h |
+| 0:00 | City overview | 6 open cases, worst water quality **94.4 (Unsafe)** at Ward 3 - Khadki Old Town, 18 complaints in 24 h; the ward map can be filtered by water, air or complaint volume |
 | 0:15 | Click the Zone-3 case | turbidity **8.962 NTU**, residual chlorine **0.0382 mg/L**, coliform present, z = 151.6 against a baseline of 1.47 ± 0.05 |
 | 0:30 | Complaints: file from B21, "Brown water from the tap since 3 days…", then Run clustering | the assistant's reading of the text is shown for confirmation; nearest sensor is Ward 3, 231 m; the report joins **CASE-2026-003**. Press clustering again — nothing changes |
 | 0:45 | Evidence panel | shared cause `zone_3`, the rule verbatim (`PLACE → TIME → BEHAVIOR`), confidence 0.9 on a 0–1 scale, readings beside limits |
@@ -71,6 +73,11 @@ deterministic, so they do not drift between rehearsals.
 | 2:20 | Cases → act two | CASE-2026-004, Emergency, **OVERDUE** badge (the server's 2-hour rule; the seed backdates its last action so the badge is on screen without waiting) |
 | 2:40 | Draft advisory → Approve → Investigating → Action Taken | the DRAFT stamp survives the draft, the Approve button unlocks only after a draft exists, and only the next status in the server's whitelist is clickable |
 | 2:50 | History | who did what, when, with role and note — engine, agent and officer are distinguishable |
+| 2:55 | Ask Nirikshan | an offline answer that names Ward 3, WQI **94.4 Unsafe**, the three breach lines, and cites the standard excerpt, the case and the node — same numbers as the screens |
+
+The city overview replaces the old dashboard as the opening beat: the same served KPIs, plus
+a ward map whose layers are coloured from the server's WQI and NAQI values, never re-derived
+in the browser.
 
 Air and land, 15 seconds each: the dust station's gauge (air_08 = NAQI **312.5 Very Poor**,
 PM10 360 → **386.9** projected in 24 h) and a waste report with its photo and a proximity
@@ -103,24 +110,33 @@ backend/forecast.py      first-order chlorine decay + 24 h PM projection, with c
 backend/rules.py         the issue-identity engine: clustering, severity, overdue, transitions
 backend/standards.py     standards rows loaded from docs/ + config, each carrying a citation
 backend/agent.py         provider-agnostic drafting; deterministic offline template as fallback
+backend/ask.py           offline evidence answer: readings + standards + open cases, with citations
 backend/db.py            sqlite access, one bulk read per screen (no N+1)
-backend/app.py           FastAPI app: 20 paths, static UI mount, error envelope, X-Request-Id
-backend/tests/           81 tests against a temp copy of the seeded DB on port 8010
+backend/app.py           FastAPI app: 21 paths, static UI mount, error envelope, X-Request-Id
+backend/tests/           93 tests against a temp copy of the seeded DB on a free test port
 
-frontend_fallback/index.html      the app shell: nav, banner, footer, panel overlay
-frontend_fallback/app.css         the theme tokens from PLAN §9.2 — no CSS framework
-frontend_fallback/api.js           fetch wrapper with a per-screen cache and request ids
-frontend_fallback/components.js    el()/table/badge/timeline/errorBox primitives
-frontend_fallback/map.js           the SVG network: layers, pan/zoom, flow animation, trace pulse
-frontend_fallback/pages_core.js    dashboard, map, complaints, cases, case detail, node detail
+frontend_fallback/index.html      the app shell: nav, banner, footer, panel overlay, role chip, ask FAB
+frontend_fallback/app.css         design tokens, tables, split rail — no CSS framework
+frontend_fallback/landing.css     landing page, shell collapse, role chip
+frontend_fallback/city.css        city overview + basemap ink + network-map overrides
+frontend_fallback/ask.css         ask page, hero, suggestion chips, FAB
+frontend_fallback/api.js          fetch wrapper with a per-screen cache and request ids
+frontend_fallback/components.js   el()/table/badge/timeline/errorBox primitives
+frontend_fallback/basemap.js      shared hand-authored schematic Mumbai basemap (no tiles)
+frontend_fallback/map.js          the SVG network: layers, pan/zoom, flow animation, trace pulse
+frontend_fallback/pages_core.js   map, complaints, cases, case detail, node detail
+frontend_fallback/pages_city.js   city overview (replaces the old dashboard)
 frontend_fallback/pages_domains.js air, land, reports
-frontend_fallback/app.js           hash router (#/map?t=case and #/map?n=node deep-link)
+frontend_fallback/pages_landing.js the demo role picker at #/welcome
+frontend_fallback/pages_ask.js    Ask Nirikshan transcript and #/ask?case= prefill
+frontend_fallback/app.js          hash router, role gate, deep links (#/map?t=, #/map?n=)
 
 docs/is10500_excerpt.txt        the water standard, transcribed, ending VERIFY…
 docs/cpcb_aqi_excerpt.txt       the NAQI bands, transcribed
 docs/swm_rules_excerpt.txt      the solid-waste rules, transcribed
 docs/FRONTEND_SPEC.md           the UI specification, generated from the live server
 docs/openapi.json               the API contract, generated from the live server
+docs/PHASE2_VISUAL_PASS.md      the visual-first pass: scope, routes, gates, fixes, limitations
 ```
 
 `frontend/` was the React polish layer in `PLAN.md` §9. It was deliberately not built — and
@@ -131,12 +147,12 @@ use. Building a Vite app over it would only add a way to break the demo.
 
 ## Offline, and how to prove it
 
-The UI loads only relative files — six scripts, one stylesheet, and same-origin `fetch`
+The UI loads only relative files — ten scripts, four stylesheets, and same-origin `fetch`
 calls. There is no npm, no CDN, no font or icon service and no remote script:
 
-- a walk of all nine pages, opening the node charts, the monitor history and the land
-  photos, put 27 fetches and image loads in the browser's network log — every one of them
-  addressed to `127.0.0.1:8000`, none to any other host;
+- a walk of all eleven routes (including the brand-new city overview, landing and ask pages)
+  put 33 requests in the browser's network log — every one of them addressed to
+  `127.0.0.1:8000`, none to any other host;
 - `grep -rno "https\?://" frontend_fallback/` returns exactly one line: the
   `http://www.w3.org/2000/svg` namespace declaration in `components.js`, which is an
   identifier the SVG DOM requires, not a request;

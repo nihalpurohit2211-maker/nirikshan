@@ -31,7 +31,8 @@ no CDN. Phase 6 runs after the UI and two full browser walkthroughs of the demo.
   interpreter as `.\\.venv\\Scripts\\python.exe`. Linux agents use `./.venv/bin/python`.
 - Venv is NOT activated; every Python command uses `PY` explicitly. Never bare `python`/`python3`.
 - `nirikshan.db` is generated, never committed (see `.gitignore`).
-- Dev server port **8000**; tests boot uvicorn on **8010** against a temp DB copy. Never mix.
+- Dev server port **8000**; tests boot uvicorn on their own free port (the OS assigns it;
+  pin with `NIRIKSHAN_TEST_PORT`) against a temp DB copy. Never mix.
 
 ## Notes / decisions
 
@@ -443,3 +444,69 @@ no CDN. Phase 6 runs after the UI and two full browser walkthroughs of the demo.
   repo, the rehearsal harness and the screenshots path are ready for it — see TRANSFER.md
   "What remains".
 - Final line: the build is complete; the demo runs offline from a fresh clone.
+
+---
+
+## POST-BUILD - 2026-11-04 - visual-first pass (landing, city, basemap, ask)
+
+Entered after `e61bafa` / `dfa9010` with the build complete and all earlier gates green.
+This pass was **presentation only**: no API field, route id, deep link, verdict rule or number
+in the browser was changed. It is recorded in full in `docs/PHASE2_VISUAL_PASS.md`.
+
+- Work done:
+  - **Design system.** Warm-paper canvas, forest as the single brand colour, CSS-variable
+    tokens, system font stack. `NIRI.table` emits a real `<table>` (empty state too) with
+    sticky headers and zebra rows, wrapped in `.table-scroll` so wide tables scroll inside
+    their card. `.split-rail` collapses below 1180 px; this removed the 1024 px case-page
+    overflow.
+  - **Landing** (`#/welcome`, `pages_landing.js`, `landing.css`). Split-screen story plus three
+    keyboard-accessible role cards. Role is a demo flag in `localStorage['niri.role']` only -
+    no backend call, no auth claim. Cold visit is gated; a deep link is remembered in
+    `NIRI.state.nextHash` and restored after the pick. `?role=officer|citizen|building` opens
+    straight in. The landing carries its own footer with "Synthetic sample data", the
+    disclaimer and the WQI "higher = worse" note.
+  - **City overview** (`#/`, `pages_city.js`, `city.css`). Dark-green hero with served KPIs and
+    demo clock; a ward map on the shared basemap with Water / Air / Complaints / All layers
+    coloured from the served WQI and NAQI values; click-to-filter triage table; hotspots, a
+    served WQI bar chart, complaint mix, worst air stations and a network preview.
+  - **Shared basemap** (`basemap.js`). One hand-authored schematic Mumbai geometry (coast,
+    creek, Mithi, Powai, parks, roads, rail, labels) as lon/lat paths, projected into a
+    1000x720 SVG. No tiles, keys, images or downloads. City and network maps share it; the
+    fake seeded street grid was removed. Ward labels get per-ward offsets, the legend is a
+    collapsed `<details>` pill, and Trace Upstream dims non-path pipes and clears cleanly.
+  - **Ask Nirikshan** (`backend/ask.py`, `POST /api/ask`, `pages_ask.js`, `ask.css`). Offline
+    answer built from served readings, the standards excerpt and rules-engine cases. Every
+    answer cites exactly three kinds: `doc` (line + quote), `case`, `node`. Hero only when
+    empty, four chips, Enter sends / Shift+Enter adds a line, error recovery restores the
+    draft, `#/ask?case=<id>` shows a banner and prefills "Explain this case" without sending.
+    Case detail links here with "Explain this case".
+- Fixes after the first verification round:
+  - **Parallel-safe tests** (`backend/tests/base.py`). The harness used to bind 8010 in every
+    process, so two unittest commands collided on the DB and the port. It now binds a socket
+    to `127.0.0.1:0` **before** uvicorn, passes it to `server.run(sockets=[...])`, keeps the
+    per-process temp DB, and honours `NIRIKSHAN_TEST_PORT` for debugging. Proven by running
+    `test_ask.py` and the full suite concurrently: **12 OK** and **93 OK**.
+  - **Role gate covers hash edits** (`frontend_fallback/app.js`). `render()` now repeats the
+    role check, so manually editing the hash from `#/welcome` cannot enter a page. The
+    attempted link is remembered and handed back after a role is picked. Verified with
+    headless Chrome: 9/9 checks pass (cold deep link gated, manual hash edit blocked, no map
+    rendered without a role, pick restores the route, `?role=` direct, switch-role returns
+    the page and repaints the chip).
+- Verification at this gate (fresh seed, live server on 8000):
+  `PY verify_seed.py` -> **31 checks, 0 failures** .
+  `PY -m unittest discover -s backend/tests` -> **93 tests, OK** .
+  `PY -m unittest discover -s backend/tests -p test_ask.py` -> **12 tests, OK** .
+  Parallel pair -> **12 OK + 93 OK, no collisions** .
+  Browser walk, 11 routes at **1366 and 1024** -> content rendered, 0 JS errors, 0 horizontal
+  overflow (max `scrollWidth - innerWidth` = 0) .
+  Role-gate walk -> 9/9 PASS .
+  Network audit, 33 requests -> all `127.0.0.1:8000`, no CDN/font/tile/external URL .
+  API smoke -> `/api/health`, `/api/overview`, `/api/network`, `/api/cases` 200 with expected
+  counts, `POST /api/ask` returns a cited answer.
+  Combined verification summary from the audit: **142/142 checks pass**.
+- Left at: visual pass complete, docs updated, all gates green.
+- Commits: `2d509fa` ask API + 12 tests, `2239d79` design system + view sources, `e3370de`
+  shell wiring, plus the fixes + `docs/PHASE2_VISUAL_PASS.md`.
+- Known limitations (also in the doc): phone width below 760 px not walked; the basemap is a
+  schematic diagram, not a survey; Ask is offline-only and its transcript is memory-only;
+  `docs/FRONTEND_SPEC.md` still describes the old dashboard rather than the city overview.
