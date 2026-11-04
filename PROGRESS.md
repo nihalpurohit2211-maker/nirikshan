@@ -510,3 +510,21 @@ in the browser was changed. It is recorded in full in `docs/PHASE2_VISUAL_PASS.m
 - Known limitations (also in the doc): phone width below 760 px not walked; the basemap is a
   schematic diagram, not a survey; Ask is offline-only and its transcript is memory-only;
   `docs/FRONTEND_SPEC.md` still describes the old dashboard rather than the city overview.
+
+### Map follow-up - ward mosaic (`2a4c17a`)
+
+The five served ward centres are within a few kilometres, so the literal blobs at those
+coordinates overlapped into one stain. Replaced them with a hand-authored Voronoi mosaic:
+five large interlocking cells with paper gutters, rounded corners, and a compact plate
+inside each cell showing the ward number, locality and the served WQI / AQI / complaint
+count for the selected layer. Hover, focus, selected and dimmed states all still work;
+leader lines are gone.
+
+The layout is presentation only. Fills and every number still come from the API, and the
+network map keeps plotting nodes at their real coordinates. The shared basemap also gained
+softened built-up blocks and more minor streets for texture.
+
+Verified in headless Chrome: 5 cells + 5 plates render; Water/Air/Complaints/All each
+switch the stat text and the right markers; clicking Ward 4 selects it, shows the filter
+chip and filters the triage table to 2 rows; 0 JS errors; the 11-route sweep at 1366 and
+1024 is still clean with 0 horizontal overflow. Recorded in `docs/PHASE2_VISUAL_PASS.md`.
