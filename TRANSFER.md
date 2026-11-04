@@ -23,7 +23,8 @@ Checkpoint trail (each one committed with tests green at the time):
 | CP5 | `ca035c1` | 21/21 data-coverage rows verified through the live API |
 | — | `894a3db` | `rehearse_demo.py` — the demo path as an executable check |
 | CP5b | `dab6caf` | the full nine-page offline UI, verified twice in a browser |
-| CP6 | this commit | README, final PROGRESS.md, this file, regenerated spec |
+| CP6 | `4b11ba2` | README, final PROGRESS.md, this file, regenerated spec |
+| CP6a | this commit | Gate 6c: the audit's two residual derived claims removed from the UI |
 
 After CP5b the UI was audited against the served payloads rather than the rendered page, which
 found twelve defects the walkthroughs could not see (a pollutant-key mismatch that silently
@@ -32,6 +33,13 @@ server had already done, a table that printed `station_id` as a pollutant, four 
 served number was re-rounded on screen, and a duplicate `/api/trace` call). All twelve are fixed,
 `node --check` clean, and §10 was walked again. Full list with evidence in `PROGRESS.md`,
 Gate 6b.
+
+A read-only audit agent was then run against the live server and asked for its residuals; two
+unserved conclusions survived into the committed build — a hotspot card that coloured the `wqi`
+factor red and the rest green (the browser picking "which factor is the alarm", across factors on
+different units), and Reports domain cards that printed `worst severity X` (a browser-side ranking
+of served labels). Both are now presentation of served data only: one neutral bar colour, and
+`severities here: …` in payload order. Re-verified live; see `PROGRESS.md`, Gate 6c.
 
 **Exact last gate output** (fresh seed, server on 8000 under the blackhole proxy, no LLM key):
 

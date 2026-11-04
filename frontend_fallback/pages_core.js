@@ -98,9 +98,12 @@ window.NIRI = window.NIRI || {};
             ]),
             el('div', { style: 'margin-top:10px' }, NIRI.bars(
               Object.keys(h.factors).map(function (key) {
+                /* One colour for every factor: the factors are the served decomposition of
+                   the score and each is on its own unit (a WQI of 94.4 and an open-case count
+                   of 1 are not comparable), so painting wqi red and the rest green would be
+                   this file inventing which factor is "the alarm". */
                 return { label: key.replace(/_/g, ' '), value: h.factors[key],
-                         shown: String(h.factors[key]),
-                         color: key === 'wqi' ? '#EA4335' : '#2F855A' };
+                         shown: String(h.factors[key]), color: '#7E9AA8' };
               }))),
             el('p', { class: 'small muted', style: 'margin-top:8px' },
               [nodeLink(h.node_id, 'open ' + h.node_id), ' · cases: ',
@@ -110,7 +113,10 @@ window.NIRI = window.NIRI || {};
           ]));
         }));
         host.appendChild(NIRI.section('Hotspots',
-          'ranked by the backend: complaint load, open cases, severity and water quality', ranked));
+          'ranked by the backend: complaint load, open cases, severity and water quality. '
+          + 'The bars are each hotspot’s served factor decomposition, and the factors keep '
+          + 'their own units — the length is that factor’s share of the row, not a verdict',
+          ranked));
 
         var preview = NIRI.map.create({
           nodes: network.nodes, pipes: network.pipes, preview: true, aspect: 0.44

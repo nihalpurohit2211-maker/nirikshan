@@ -203,6 +203,24 @@ no CDN. Phase 6 runs after the UI and two full browser walkthroughs of the demo.
   Offline re-measured on the fixed build: a nine-page walk with charts, history and photos open
   logged **27 requests, 27 to `127.0.0.1:8000`, 0 elsewhere**, and `grep -rno "https\?://"`
   over `frontend_fallback/` returns one line — the `www.w3.org/2000/svg` namespace literal.
+- **Gate 6c (reconciling the delegated read-only audit):** the audit agent that ran against the
+  live server was asked for its residual lists and two claims were still standing in the committed
+  build — neither a wrong number, both an unserved conclusion:
+  1. the hotspot cards painted the `wqi` factor red and every other factor green, which is this
+     file deciding which factor is "the alarm" while the factors are on different units anyway
+     (a WQI of 94.4 next to an open-case count of 1). All four bars are now one neutral slate, and
+     the section caption says what the row is: the served decomposition, not a verdict.
+  2. the Reports domain cards said `worst severity X`, ranking the served labels in the browser.
+     Replaced by `severities here: <served labels in payload order>`; the ordering helper and its
+     hard-coded `['Emergency','High','Medium','Low']` array are gone, because the server's ranking
+     already exists as `/api/overview` `triage`, which the dashboard shows.
+  Verified live after the change: five hotspot cards with all four bars at `rgb(126,154,168)` and
+  served values (`wqi=94.4 | open cases=1 | severity=25 | complaints 24h=5` on Ward 3), and the
+  three domain cards reading `severities here: Emergency, High, Medium, Low` / `High` /
+  `Medium, Low`; no `worst severity`, no `NaN`/`undefined`/`[object` on the page. `node --check`
+  clean on all six scripts. The audit's other items were already fixed in Gate 6b; its
+  "hotspot `.colour` read" and `detail.node.wqi` claims were checked against the current files and
+  are not present (the code reads `h.band` through `bandBadge` and `detail.wqi`).
 
 ---
 
@@ -400,7 +418,9 @@ no CDN. Phase 6 runs after the UI and two full browser walkthroughs of the demo.
   `node --check` on all six UI scripts -> OK · §10 walked twice in the browser, second walk
   clean with no fixes needed · network log for the walk stayed entirely on `127.0.0.1:8000`
   (152/152 on that pre-audit build, 27/27 re-measured on the fixed build — see Gate 6b).
-- Left at: **CP6** — gate PASS.
+- Left at: **CP6** — gate PASS, and **CP6a** after it (Gate 6c: two unserved conclusions the
+  delegated read-only audit still found in the UI — the red/green hotspot factor bars and the
+  browser-ranked `worst severity` caption — removed and re-verified live).
 - Blockers: none. Nothing on the §14 cut list was cut.
 - Not done, and not doable by this build: the Phase 6 "backup video", the hosted live URL and
   the judge submission itself need a human with a screen recorder and the contest portal. The

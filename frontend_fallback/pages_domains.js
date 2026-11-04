@@ -491,7 +491,8 @@
               NIRI.badge(inDomain.length + ' cases', inDomain.length ? 'plain' : 'low'),
               NIRI.badge(rows.length + ' reports', 'plain'),
               el('span', { class: 'small muted', text: inDomain.length
-                ? 'worst severity ' + worstSeverity(inDomain) : 'no case open in this domain' }),
+                ? 'severities here: ' + severities(inDomain).join(', ')
+                : 'no case open in this domain' }),
               el('span', { style: 'margin-left:auto' }, domain === 'water'
                 ? NIRI.badge('triage ' + overview.triage.filter(function (t) { return t.domain === 'water'; }).length, 'plain')
                 : domain === 'air' ? NIRI.badge('NAQI ' + (overview.kpis.worst_aqi
@@ -567,14 +568,13 @@
     }
   };
 
-  /* Orders the severity labels the server already assigned to these cases; it decides
-     nothing and is only used for the "worst severity" caption on a domain card. */
-  function worstSeverity(rows) {
-    var order = ['Emergency', 'High', 'Medium', 'Low'];
-    for (var i = 0; i < order.length; i++) {
-      if (rows.some(function (c) { return c.severity === order[i]; })) return order[i];
-    }
-    return '—';
+  /* The severity labels the server assigned to these cases, in payload order, de-duplicated.
+     No ranking: which of them is the most urgent is the rules engine’s business and it is
+     already expressed in /api/overview’s triage order, which the dashboard shows. */
+  function severities(rows) {
+    var seen = [];
+    rows.forEach(function (c) { if (c.severity && seen.indexOf(c.severity) < 0) seen.push(c.severity); });
+    return seen;
   }
   var STATUS_BAR = { Open: '#EA4335', Investigating: '#F4B400',
                      'Action Taken': '#34A853', Resolved: '#2F855A' };
