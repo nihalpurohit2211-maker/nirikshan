@@ -970,6 +970,21 @@ def daily_report():
 
 
 # ---------------------------------------------------------------------------
+# ask
+# ---------------------------------------------------------------------------
+
+class AskIn(BaseModel):
+    question: str
+    case_id: str | None = None
+
+
+@app.post("/api/ask")
+def ask_endpoint(body: AskIn):
+    from backend.ask import answer
+    return answer(body.question, body.case_id)
+
+
+# ---------------------------------------------------------------------------
 # data + static UI
 # ---------------------------------------------------------------------------
 
