@@ -26,34 +26,21 @@ window.NIRI = window.NIRI || {};
      drift from the map. */
   var BAND_FILL = { Good: '#34A853', Acceptable: '#A8D08D', Poor: '#F4B400', Unsafe: '#EA4335' };
 
-  function mulberry(seed) {
-    return function () {
-      seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
-      var t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-  }
-
   function create(cfg) {
     var W = 1000, H = Math.round(W * (cfg.aspect || 0.72));
     var nodes = cfg.nodes, pipes = cfg.pipes;
 
-    /* Projection: bounds of the served nodes, 10 % padding, aspect kept. */
-    var lons = nodes.map(function (n) { return n.lon; });
-    var lats = nodes.map(function (n) { return n.lat; });
-    var minLon = Math.min.apply(null, lons), maxLon = Math.max.apply(null, lons);
-    var minLat = Math.min.apply(null, lats), maxLat = Math.max.apply(null, lats);
-    var pad = 0.10;
-    var sx = (W * (1 - 2 * pad)) / ((maxLon - minLon) || 1);
-    var sy = (H * (1 - 2 * pad)) / ((maxLat - minLat) || 1);
-    var uniform = Math.min(sx, sy);
-    var offX = (W - (maxLon - minLon) * uniform) / 2;
-    var offY = (H - (maxLat - minLat) * uniform) / 2;
+    /* Projection: the shared schematic base map's study-area bounds, fitted to the
+       SVG. Padding matches basemap.js exactly; the base layer is squeezed by the
+       same H/720 factor so its roads and the pipes cannot drift apart. */
+    var bounds = NIRI.basemap.BOUNDS.local;
+    var pad = 0.065;
+    var sx = (W * (1 - 2 * pad)) / (bounds.maxLon - bounds.minLon);
+    var sy = (H * (1 - 2 * pad)) / (bounds.maxLat - bounds.minLat);
 
     function pos(node) {
-      return [offX + (node.lon - minLon) * uniform,
-              offY + (maxLat - node.lat) * uniform];
+      return [W * pad + (node.lon - bounds.minLon) * sx,
+              H * pad + (bounds.maxLat - node.lat) * sy];
     }
     var byId = {};
     nodes.forEach(function (n) { byId[n.id] = n; });
@@ -63,29 +50,18 @@ window.NIRI = window.NIRI || {};
     var selected = null;
     var traceIds = null;
 
-    var surface = s('svg', { class: 'map-svg' + (cfg.preview ? ' preview' : ''),
+    var surface = s('svg', { class: 'map-svg' + (cfg.preview ? ' preview' : ' network-svg'),
                              viewBox: '0 0 ' + W + ' ' + H,
                              role: 'img',
-                             'aria-label': 'water network: ' + nodes.length + ' nodes, '
-                                           + pipes.length + ' pipes' });
+                             'aria-label': 'schematic Mumbai base map with the water network: '
+                                           + nodes.length + ' nodes, ' + pipes.length + ' pipes' });
     var pan = s('g', {});
     surface.appendChild(pan);
 
-    /* 1. faint seeded street grid (decorative, so the map reads as a city) */
-    var grid = s('g', {});
-    var rand = mulberry(20261103);
-    var step = W / 22;
-    for (var gx = step; gx < W; gx += step) {
-      var wobble = (rand() - 0.5) * 14;
-      grid.appendChild(s('line', { class: 'grid-line', x1: gx + wobble, y1: 0,
-                                   x2: gx - wobble, y2: H }));
-    }
-    for (var gy = step; gy < H; gy += step * 1.25) {
-      var wobble2 = (rand() - 0.5) * 12;
-      grid.appendChild(s('line', { class: 'grid-line', x1: 0, y1: gy + wobble2,
-                                   x2: W, y2: gy - wobble2 }));
-    }
-    pan.appendChild(grid);
+    /* 0. the shared Mumbai base map, under every pipe and node */
+    var base = NIRI.basemap.layer('local');
+    base.setAttribute('transform', 'scale(1 ' + (H / 720).toFixed(5) + ')');
+    pan.appendChild(base);
 
     /* 2. pipes — stroke width ∝ log(diameter) */
     var pipeLayer = s('g', {});
@@ -146,8 +122,16 @@ window.NIRI = window.NIRI || {};
 
       if (layers.labels && (n.type === 'zone' || n.type === 'source' || n.type === 'treatment_plant'
                             || n.type === 'reservoir' || n.type === 'pump')) {
+        /* the short ward label keeps the map legible; the full name is in the title */
+        var labelText = n.type === 'zone' ? n.name.split(' - ')[0]
+                      : n.name.replace(/ (Booster|Reservoir|Plant|Intake|Cluster).*/, '');
+        /* the five ward nodes sit close together, so their labels are pushed out in
+           five different directions instead of stacking at the same +9/+3 offset */
+        var ZONE_LABEL = { zone_1: [-42, 19], zone_2: [12, 19], zone_3: [-40, -11],
+                           zone_4: [12, -11], zone_5: [-60, -14] };
+        var off = (n.type === 'zone' && ZONE_LABEL[n.id]) || [9, 3];
         var label = s('text', { class: 'node-label' + (n.type === 'zone' ? ' key' : ''),
-                                x: xy[0] + 9, y: xy[1] + 3, text: n.name });
+                                x: xy[0] + off[0], y: xy[1] + off[1], text: labelText });
         label.dataset.node = n.id;
         labelLayer.appendChild(label);
       }
@@ -168,7 +152,6 @@ window.NIRI = window.NIRI || {};
 
     function applyLayers() {
       pipeLayer.style.display = layers.pipes ? '' : 'none';
-      grid.style.display = layers.pipes ? '' : 'none';
       labelLayer.style.display = layers.labels ? '' : 'none';
       nodeLayer.querySelectorAll('[data-node]').forEach(function (shape) {
         var node = byId[shape.dataset.node];
@@ -184,9 +167,19 @@ window.NIRI = window.NIRI || {};
       traceLayer.innerHTML = '';
       traceIds = {};
       (trace.path || []).forEach(function (id) { traceIds[id] = true; });
-      Object.keys(pipeNodes).forEach(function (pipeId) { pipeNodes[pipeId].classList.remove('trace'); });
+      var tracePipes = {};
+      (trace.steps || []).forEach(function (step) {
+        if (step.pipe && step.pipe.id) tracePipes[step.pipe.id] = true;
+      });
+      Object.keys(pipeNodes).forEach(function (pipeId) {
+        pipeNodes[pipeId].classList.remove('trace');
+        pipeNodes[pipeId].classList.toggle('trace-dim', !tracePipes[pipeId]);
+      });
       nodeLayer.querySelectorAll('[data-node]').forEach(function (shape) {
-        shape.style.opacity = traceIds[shape.dataset.node] ? '' : '.25';
+        shape.style.opacity = traceIds[shape.dataset.node] ? '' : '.22';
+      });
+      labelLayer.querySelectorAll('[data-node]').forEach(function (text) {
+        text.style.opacity = traceIds[text.dataset.node] ? '' : '.18';
       });
 
       var pts = [];
@@ -231,8 +224,12 @@ window.NIRI = window.NIRI || {};
     function clearTrace() {
       traceIds = null;
       traceLayer.innerHTML = '';
-      Object.keys(pipeNodes).forEach(function (id) { pipeNodes[id].classList.remove('trace'); });
+      Object.keys(pipeNodes).forEach(function (id) {
+        pipeNodes[id].classList.remove('trace');
+        pipeNodes[id].classList.remove('trace-dim');
+      });
       nodeLayer.querySelectorAll('[data-node]').forEach(function (shape) { shape.style.opacity = ''; });
+      labelLayer.querySelectorAll('[data-node]').forEach(function (text) { text.style.opacity = ''; });
       applyLayers();
     }
 
@@ -300,22 +297,27 @@ window.NIRI = window.NIRI || {};
           'labels'
         ])
       ]);
-      var legend = el('div', { class: 'map-legend' }, [
-        el('strong', { text: 'Water quality band' }),
-        el('div', { style: 'margin:6px 0' }, ['Good', 'Acceptable', 'Poor', 'Unsafe'].map(function (band) {
-          return el('div', { class: 'k' }, [
-            el('span', { class: 'sw', style: 'background:' + BAND_FILL[band] }), band,
-            el('span', { class: 'muted', text: ' ' + NIRI.BANDS[band] })
-          ]);
-        })),
-        el('div', { class: 'k' }, [el('span', { class: 'sw', style: 'background:' + NO_WQI }),
-                                   'node, no sensor']),
-        el('div', { class: 'k' }, [el('span', { class: 'sw',
-            style: 'background:' + AIR_FILL + ';transform:rotate(45deg);border-radius:2px' }), 'air station']),
-        el('div', { class: 'k' }, [el('span', { class: 'sw',
-            style: 'background:' + LAND_FILL + ';border-radius:2px' }), 'land site']),
-        el('p', { class: 'muted', style: 'margin:8px 0 0;font-size:11.5px' },
-          'Pipe thickness ∝ log(diameter). On a trace, a higher decay k means a worse section.')
+      /* Collapsed by default: an open two-hundred-pixel legend sat on top of Ward 5.
+         The summary pill is one click away and the map stays readable. */
+      var legend = el('details', { class: 'map-legend' }, [
+        el('summary', { text: 'Legend' }),
+        el('div', { class: 'map-legend-body' }, [
+          el('strong', { text: 'Water quality band' }),
+          el('div', { style: 'margin:6px 0' }, ['Good', 'Acceptable', 'Poor', 'Unsafe'].map(function (band) {
+            return el('div', { class: 'k' }, [
+              el('span', { class: 'sw', style: 'background:' + BAND_FILL[band] }), band,
+              el('span', { class: 'muted', text: ' ' + NIRI.BANDS[band] })
+            ]);
+          })),
+          el('div', { class: 'k' }, [el('span', { class: 'sw', style: 'background:' + NO_WQI }),
+                                     'node, no sensor']),
+          el('div', { class: 'k' }, [el('span', { class: 'sw',
+              style: 'background:' + AIR_FILL + ';transform:rotate(45deg);border-radius:2px' }), 'air station']),
+          el('div', { class: 'k' }, [el('span', { class: 'sw',
+              style: 'background:' + LAND_FILL + ';border-radius:2px' }), 'land site']),
+          el('p', { class: 'muted', style: 'margin:8px 0 0;font-size:11.5px' },
+            'Pipe thickness ∝ log(diameter). On a trace, a higher decay k means a worse section.')
+        ])
       ]);
       host.appendChild(controls);
       host.appendChild(legend);

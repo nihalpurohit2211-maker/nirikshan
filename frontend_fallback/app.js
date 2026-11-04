@@ -16,7 +16,9 @@
   var el = NIRI.el, api = NIRI.api, ui = NIRI.ui;
 
   var ROUTES = [
-    { page: 'dashboard', hash: '#/', match: /^\/$/, nav: 'Dashboard', glyph: '▦' },
+    { page: 'welcome', hash: '#/welcome', match: /^\/welcome$/, nav: 'Welcome', glyph: '✳',
+      hidden: true },
+    { page: 'dashboard', hash: '#/', match: /^\/$/, nav: 'City overview', glyph: '▦' },
     { page: 'map', hash: '#/map', match: /^\/map$/, nav: 'Network map', glyph: '⌗' },
     { page: 'complaints', hash: '#/complaints', match: /^\/complaints$/, nav: 'Complaints', glyph: '✎',
       count: function () { return api.complaints().then(function (d) { return d.count; }); } },
@@ -26,7 +28,8 @@
       count: function () { return api.air().then(function (d) { return d.stations.length; }); } },
     { page: 'land', hash: '#/land', match: /^\/land$/, nav: 'Land reports', glyph: '▲',
       count: function () { return api.land().then(function (d) { return d.count; }); } },
-    { page: 'reports', hash: '#/reports', match: /^\/reports$/, nav: 'Reports', glyph: '☰' }
+    { page: 'reports', hash: '#/reports', match: /^\/reports$/, nav: 'Reports', glyph: '☰' },
+    { page: 'ask', hash: '#/ask', match: /^\/ask$/, nav: 'Ask Nirikshan', glyph: '✦' }
   ];
   /* detail screens are matched by prefix, then the rest of the path is the id */
   var DEEP = [{ prefix: '/cases/', page: 'case' }, { prefix: '/nodes/', page: 'node' }];
@@ -70,6 +73,7 @@
   function paintNav(activePage) {
     NIRI.clear(navHost);
     ROUTES.forEach(function (def) {
+      if (def.hidden) return;
       var counter = el('span', { class: 'count' });
       var a = el('a', { href: def.hash, class: def.page === activePage ? 'active' : null },
                  [def.glyph + ' ' + def.nav, counter]);
@@ -102,6 +106,19 @@
     });
   }
 
+  var ROLE_LABEL = { officer: 'Officer', citizen: 'Citizen', building: 'Building admin' };
+
+  /* The role is a demo flag in localStorage only; nothing here is security. */
+  function paintRole() {
+    var role = NIRI.role ? NIRI.role.get() : null;
+    var chip = document.getElementById('role-chip');
+    var button = document.getElementById('switch-role');
+    if (!chip || !button) return;
+    chip.hidden = !role;
+    button.hidden = !role;
+    if (role) chip.textContent = ROLE_LABEL[role] + ' · demo';
+  }
+
   function render() {
     var route = parseHash();
     var hit = resolve(route);
@@ -109,9 +126,15 @@
     var page = NIRI.pages[hit.def.page];
     if (!page) { unknownRoute(route.path); return; }
 
+    /* The deep link is remembered once, for the role picker; after the picker sends us
+       somewhere it must not hijack the next role switch. */
+    if (route.path !== '/welcome') NIRI.state.nextHash = null;
+
+    document.body.dataset.page = hit.def.page;
     titleEl.textContent = page.title;
     subEl.textContent = page.sub || '';
     paintNav(hit.def.page);
+    paintRole();
     ui.closePanel();
     NIRI.clear(view);
     page.render(view, hit.params, hit.arg);
@@ -156,7 +179,36 @@
       view.appendChild(el('p', { class: 'small muted', style: 'margin-top:12px' },
         'seed then serve:  ./.venv/Scripts/python.exe seed.py && '
         + './.venv/Scripts/python.exe -m uvicorn backend.app:app --port 8000'));
-    }).then(render);
+    }).then(function () {
+      /* A demo link may carry ?role=officer so the page opens straight in that role.
+         It writes the same localStorage flag the picker writes; there is no auth. */
+      var roleParam = parseHash().query.role;
+      if (roleParam && NIRI.role && /^(officer|citizen|building)$/.test(roleParam)) {
+        NIRI.role.set(roleParam);
+      }
+
+      /* First visit wears the landing page. Any hash that was open is remembered and
+         handed back after the role picker; an existing role goes straight in. */
+      var stored = NIRI.role ? NIRI.role.get() : null;
+      var raw = location.hash || '#/';
+      if (!stored && raw.indexOf('#/welcome') !== 0) {
+        if (raw !== '#/' && raw !== '') NIRI.state.nextHash = raw;
+        location.hash = '#/welcome';
+        return;
+      }
+      render();
+    });
+  }
+
+  /* Demo role switch: keep the page under the picker, then give it back. */
+  var switchRole = document.getElementById('switch-role');
+  if (switchRole) {
+    switchRole.addEventListener('click', function () {
+      var raw = location.hash || '#/';
+      if (raw.indexOf('#/welcome') !== 0) NIRI.state.nextHash = raw;
+      if (NIRI.role) NIRI.role.clear();
+      location.hash = '#/welcome';
+    });
   }
 
   /* A write changes the numbers on three screens, so the next read is never a stale cache. */

@@ -149,12 +149,11 @@ window.NIRI = window.NIRI || {};
           onTraceStep: function (step) { openNodePanel(step.node_id); }
         });
 
-        host.appendChild(el('div', { class: 'grid cols-2 section',
-                                     style: 'grid-template-columns: 1fr 340px;align-items:start' }, [
+        host.appendChild(el('div', { class: 'split-rail section', style: '--rail:340px' }, [
           el('div', {}, [map.element,
             el('p', { class: 'small muted', style: 'margin-top:8px' },
-              'drag to pan · wheel or +/− to zoom · click a node for its panel · pipe ' +
-              'thickness ∝ log(diameter)')]),
+              'schematic base map — not to scale; synthetic city data · drag to pan · wheel '
+              + 'or +/− to zoom · click a node for its panel · pipe thickness ∝ log(diameter)')]),
           traceCard
         ]));
 
@@ -509,8 +508,8 @@ window.NIRI = window.NIRI || {};
         .then(function () { clusterBtn.disabled = false; });
     });
 
-    return NIRI.section('Intake', null, el('div', { class: 'grid',
-      style: 'grid-template-columns:1fr 380px;align-items:start;gap:18px' }, [
+    return NIRI.section('Intake', null, el('div', { class: 'split-rail',
+      style: '--rail:380px' }, [
       el('div', { class: 'card' }, [
         bar,
         el('div', { class: 'field' }, [el('label', { text: 'where' }), nodeSelect, hint]),
@@ -728,14 +727,17 @@ window.NIRI = window.NIRI || {};
           ' · opened ' + api.time(row.created_at)
           + ' · last action ' + api.since(row.last_action || row.updated_at)])
       ]),
-      row.domain === 'water'
-        ? el('button', { class: 'primary', text: 'Trace Upstream', on: { click: function () {
-            location.hash = '#/map?t=' + encodeURIComponent(row.id);
-          } } })
-        : null
+      el('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap' }, [
+        link('#/ask?case=' + encodeURIComponent(row.id), '✦ Explain this case', 'chip'),
+        row.domain === 'water'
+          ? el('button', { class: 'primary', text: 'Trace Upstream', on: { click: function () {
+              location.hash = '#/map?t=' + encodeURIComponent(row.id);
+            } } })
+          : null
+      ])
     ]));
 
-    host.appendChild(el('div', { class: 'grid', style: 'grid-template-columns:1fr 400px;align-items:start;gap:18px' }, [
+    host.appendChild(el('div', { class: 'split-rail', style: '--rail:400px' }, [
       el('div', {}, [evidencePanel(row, ev, detail), standardsPanel(detail), traceSummary(row, detail)]),
       el('div', {}, [draftPanel(row, detail), timelinePanel(detail), transitionsPanel(row, detail)])
     ]));
