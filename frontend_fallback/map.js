@@ -15,6 +15,10 @@ window.NIRI = window.NIRI || {};
   var SIZE = { source: 8.5, treatment_plant: 8.5, reservoir: 8, pump: 6.5, junction: 5.5,
                zone: 7, building: 3.4 };
   var NO_WQI = '#9FB3A8';
+  /* /api/network carries no NAQI or land subtype, so these two shapes are fixed marks
+     that match the legend exactly. */
+  var AIR_FILL = '#7E9AA8';
+  var LAND_FILL = '#C08A2E';
   var BAND_FILL = { Good: '#34A853', Acceptable: '#A8D08D', Poor: '#F4B400', Unsafe: '#EA4335' };
 
   function mulberry(seed) {
@@ -107,12 +111,12 @@ window.NIRI = window.NIRI || {};
       if (n.type === 'air_station') {
         shape = s('rect', { class: 'node-shape', x: -5, y: -5, width: 10, height: 10,
                             transform: 'translate(' + xy[0] + ' ' + xy[1] + ') rotate(45)',
-                            fill: (n.aqi && n.aqi.colour) || '#7E9AA8' });
+                            fill: AIR_FILL });
       } else if (n.type === 'land_site') {
         shape = s('path', { class: 'node-shape',
                             d: 'M-4 6 L-4 -7 L6 -4 L-4 -1 Z',
                             transform: 'translate(' + xy[0] + ' ' + xy[1] + ')',
-                            fill: n.land_kind ? '#B8860B' : '#C08A2E' });
+                            fill: LAND_FILL });
       } else {
         shape = s('circle', { class: 'node-shape', cx: xy[0], cy: xy[1],
                               r: (SIZE[n.type] || 4) * (cfg.preview ? 0.8 : 1),
@@ -302,9 +306,9 @@ window.NIRI = window.NIRI || {};
         el('div', { class: 'k' }, [el('span', { class: 'sw', style: 'background:' + NO_WQI }),
                                    'node, no sensor']),
         el('div', { class: 'k' }, [el('span', { class: 'sw',
-            style: 'background:#7E9AA8;transform:rotate(45deg);border-radius:2px' }), 'air station']),
+            style: 'background:' + AIR_FILL + ';transform:rotate(45deg);border-radius:2px' }), 'air station']),
         el('div', { class: 'k' }, [el('span', { class: 'sw',
-            style: 'background:#C08A2E;border-radius:2px' }), 'land site']),
+            style: 'background:' + LAND_FILL + ';border-radius:2px' }), 'land site']),
         el('p', { class: 'muted', style: 'margin:8px 0 0;font-size:11.5px' },
           'Pipe thickness ∝ log(diameter). On a trace, a higher decay k means a worse section.')
       ]);

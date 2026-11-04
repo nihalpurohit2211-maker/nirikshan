@@ -6,16 +6,18 @@
 ## Phase checklist
 
 - [x] Phase 0 — scaffold, venv, pinned deps, `config/*.json`, `docs/` → **CP0** (committed `d5b5f60`)
-- [x] Phase 1 — `schema.sql`, `seed.py`, `verify_seed.py`, demo numbers contract → **CP1** (31 checks, 0 failures)
-- [x] Phase 2 — backend core modules + API + tests green on 8010 → **CP2** (50 tests, OK)
-- [x] Phase 3 — `agent.py` + offline fallback, DRAFT stamp → **CP3** (81 tests, OK; draft = DRAFT)
-- [x] Phase 4 — **scope changed by the user:** frontend is handed to another agent. No React
-      app, no npm. Deliverables = minimal `frontend_fallback/index.html` + generated
-      `docs/FRONTEND_SPEC.md` / `docs/openapi.json` → **CP4** (committed `9e50396`)
-- [x] Phase 5 — **scope changed:** verify by API that air, land, alerts and reports data are
-      exposed, and that the spec lists everything the UI needs → **CP5** (21/21 coverage rows
-      green, §13 of the spec)
-- [ ] Phase 6 — README, rehearsal, offline check, submission, `TRANSFER.md` → **CP6**
+- [x] Phase 1 — `schema.sql`, `seed.py`, `verify_seed.py`, demo numbers contract → **CP1** (committed `36da67e`; 31 checks, 0 failures)
+- [x] Phase 2 — backend core modules + API + tests green on 8010 → **CP2** (committed `dd91a6b`; 50 tests, OK)
+- [x] Phase 3 — `agent.py` + offline fallback, DRAFT stamp → **CP3** (committed `030444c`; 81 tests, OK; draft = DRAFT)
+- [x] Phase 4 — delivered twice. First as the revised scope: minimal `frontend_fallback/index.html`
+      + generated `docs/FRONTEND_SPEC.md` / `docs/openapi.json` → **CP4** (committed `9e50396`).
+      Then as the original scope, after the handoff was cancelled: the **full nine-page UI** in
+      `frontend_fallback/`, plain HTML/CSS/JS, no npm, no CDN → **CP5b** (committed `dab6caf`)
+- [x] Phase 5 — air, land, alerts and reports verified exposed through the API, and the spec's
+      §13 coverage table generated from the live server → **CP5** (committed `ca035c1`, 21/21
+      rows green; rehearsal harness `894a3db`)
+- [x] Phase 6 — README, two full browser walks of the demo, offline proof, final PROGRESS.md,
+      `TRANSFER.md` → **CP6** (this commit)
 
 **2026-11-04 11:45 — scope changed back:** the user cancelled the frontend handoff. This
 build owns the UI. `docs/FRONTEND_SPEC.md` is no longer a handoff to another agent, it is
@@ -135,6 +137,72 @@ no CDN. Phase 6 runs after the UI and two full browser walkthroughs of the demo.
   as §13 of `docs/FRONTEND_SPEC.md` (2,852 lines, 21 routes). `PY -m unittest discover -s
   backend/tests` -> **Ran 81 tests, OK**. Nothing added to the API: air, land, alerts and
   reports were already fully exposed, which is what §13 proves.
+- **Gate 4-full (the UI itself, after the handoff was cancelled):** `node --check` on all six
+  `frontend_fallback/*.js` -> OK, and every one of the fifteen §11 acceptance items checked in
+  a real browser against the running server (not asserted from source). The notable catches:
+  `ui.errorBox` was exported only as `NIRI.errorBox`, so ~20 error paths painted an empty box;
+  `pages.cases.render` called `.get()` on the router's plain params object and left the page
+  spinning at "loading cases…"; `.panel-host{display:flex}` overrode the `hidden` attribute and
+  drew the overlay on every screen; nested array children were stringified into the page;
+  `api.nodeName()` fell back to a bare id on the map page because only `api.names()` filled the
+  name cache. All five are fixed and re-verified.
+- **Gate 6:** `PY rehearse_demo.py` -> **17/17 beats clean**, exit 0. `PY -m unittest discover
+  -s backend/tests` -> **Ran 81 tests, OK**. `PY verify_seed.py` -> **31 checks, 0 failures**.
+  `PY make_frontend_spec.py` -> `coverage: 21/21 scenarios verified through the API`, spec
+  regenerated with all fifteen §11 boxes ticked and the §13 overdue row now reporting **1 of 6**
+  (the seed backdates the ward-4 burst action so the badge is demonstrable at the frozen clock).
+  Offline proof: a walk of all nine pages issued **152 resource requests, 152 to
+  `127.0.0.1:8000`, 0 to any other host**, and the only URL literal in `frontend_fallback/` is
+  the `www.w3.org` SVG namespace. Both §10 walks ran end to end on a fresh seed with no manual
+  SQL or API intervention.
+- **Gate 6b (read-only audit of my own UI, then fixes + re-verify):** a second pass over the
+  six scripts against live payloads found twelve real defects, all of them mine and all of them
+  caught only by checking the served JSON rather than the rendered page:
+  1. `POLLUTANTS` matched `aqi.subindices` on pretty labels (`NO₂`, `SO₂`, `O₃`) while the
+     server keys them `NO2`, `SO2`, `O3` — three of the six sub-index bars and three table rows
+     silently disappeared on every monitor card. Now keyed by a separate `qi` field.
+  2. A served sub-index of `0` (CO) printed as `—` because the getter tested truthiness.
+  3. The worst-contributor bar was picked by re-running `subindex >= aqi.value` in the browser;
+     `aqi.driving_pollutant` is served — now read from it (§12).
+  4. `station.latest.timestamp` was read unguarded next to an already-guarded copy of the same
+     object.
+  5. The air case's monitor table printed `station_id` as if it were a pollutant and headed the
+     numeric column `µg/m³`, which is wrong for water (`ph`, `turbidity_ntu`) and for CO.
+  6. The WQI sub-index bars coloured themselves with invented cut-offs (`qi > 100`, `qi > 60`);
+     no band is served per parameter, so the only claim now made is the one the data supports —
+     the highest served QI is the worst contributor, in the served `wqi.colour`.
+  7. The dashboard's air KPI used `value > 200` to decide the alert tone; `> 200` is `Poor` in
+     `config/aqi.json`, not the `Severe` the copy implied. Tone now comes from the served
+     category name via `NIRI.isBadAqi`.
+  8. The gauge and two KPIs rounded served numbers (`312.5` displayed as `313`); they now print
+     exactly what was sent, and the rule-confidence field stopped multiplying by 100.
+  9. The case page fetched `/api/trace/{id}` for a trace already served inside
+     `/api/cases/{id}` — one avoided request per case, and no second chance for the two
+     payloads to disagree.
+  10. The reports page claimed "at the seeded clock nothing is 2 h actionless" while the server
+      was flagging CASE-2026-004 overdue; the sentence is now generated from the served flags.
+  11. The daily-summary stamp and the draft toast hard-coded the string `DRAFT` that the API
+      already serves in `status`.
+  12. `map.js` read two fields `/api/network` never sends (`n.aqi` on an air node,
+      `n.land_kind` on a land node), so the ternaries always fell to the same branch; the fills
+      are now the legend constants, and dead `NEW`/`Emergency` entries left `STATUS_CLASS`.
+  Plus one copy bug ("this is a air case"). Re-verified in the browser after each change with a
+  cache-ignoring reload: all six sub-index bars and all six table rows on every monitor card
+  (60 bars across 10 stations), the driving pollutant is the only one highlighted, the air case
+  table reads `parameter / value` with six pollutants and no station id, `#/nodes/zone_3` shows
+  the served `Unsafe · 94.4` badge with its lab rows and the chlorine bar (QI 154) as the
+  driver, the hero trace renders from the case payload with no second fetch, the reports page
+  names CASE-2026-004 as overdue, and the map still draws 76 circles + 10 diamonds + 12 flags
+  (98 nodes) with 7 traced pipes on the hero case. §10 was then walked again end to end: B21
+  report filed (nearest sensor Ward 3, **231 m**, joins CASE-2026-003), clustering run twice
+  (8 → 8 → 8), draft → approve → `Investigating` → `Action Taken` with the signature in the
+  history, air 312.5 → 386.9, land photos and the 80-point proximity table. Ten routes plus the
+  404 route scanned for `NaN`/`undefined`/`[object` artifacts: none.
+  Final gates on a restored pristine seed: **31 checks / 0 failures**, **Ran 81 tests, OK**,
+  **17/17 beats clean**, **21/21 coverage**, spec regenerated (21 routes, 2840 lines).
+  Offline re-measured on the fixed build: a nine-page walk with charts, history and photos open
+  logged **27 requests, 27 to `127.0.0.1:8000`, 0 elsewhere**, and `grep -rno "https\?://"`
+  over `frontend_fallback/` returns one line — the `www.w3.org/2000/svg` namespace literal.
 
 ---
 
@@ -291,6 +359,51 @@ no CDN. Phase 6 runs after the UI and two full browser walkthroughs of the demo.
 - Note: `overdue` is 0/6 at the seeded demo clock — every seeded case is created at NOW, so
   nothing is 2 h actionless yet. The badge appears as soon as the clock advances; §13 states
   this so the UI does not look broken when it renders a real zero.
+  **[superseded by Phase 6]** `seed.py` now clusters at seed time and backdates the ward-4
+  burst action to `demo_now − 3 h`, so exactly one case arrives already overdue and the badge
+  is on screen at the frozen clock. §13 was regenerated to say **1 of 6**.
 - Next action: Phase 6 — README, the Wi-Fi-off rehearsal of the demo, final PROGRESS.md and
   `TRANSFER.md`, commit CP6. Final line of the build: "BACKEND COMPLETE — frontend handoff
   spec at docs/FRONTEND_SPEC.md".
+
+---
+
+## SESSION — 2026-11-04 11:45 — unattended agent (final build session)
+
+- Entered at: CP5, with the frontend handed off to another agent. Verified by
+  `git log --oneline` -> `ca035c1 CP5: …` and `894a3db Rehearsal harness: …`, and by re-running
+  the suite: 81 tests OK.
+- **Scope changed mid-session by the user:** the handoff was cancelled and this build took the
+  UI back. That is the only reason Phase 4 appears twice in the checklist.
+- Work done:
+  - Built the full nine-page UI in `frontend_fallback/` (index.html + app.css + api.js +
+    components.js + map.js + pages_core.js + pages_domains.js + app.js) to
+    `docs/FRONTEND_SPEC.md` §5/§6 — plain ES5, no npm, no CDN, hash router with
+    `#/map?t=<case>` and `#/map?n=<node>` deep links.
+  - Fixed the defects found by walking it in a browser rather than reading it: the `errorBox`
+    export, the `params.get` TypeError on `#/cases`, `[hidden]` losing to `display:flex` on the
+    panel host, nested-array children stringifying into chips, the name cache only filled by
+    `api.names()`, the Approve button never re-painting after a draft, and the approved state
+    not surviving a reload (now reconstructed from the action log).
+  - Two backend/seed changes so the story is demonstrable, not merely correct: the trace
+    explanation names the source by its own node type instead of hard-coding "treatment plant",
+    and `seed.py` clusters once and backdates the ward-4 burst action to `demo_now − 3 h` so the
+    OVERDUE badge renders at the frozen clock. Checked first that no test, `verify_seed`
+    assertion or spec-generator claim depended on action timestamps, and that `evidence_json`
+    excludes them so clustering stays idempotent.
+  - `README.md` written; `docs/FRONTEND_SPEC.md` + `docs/openapi.json` regenerated from the live
+    server with all fifteen §11 boxes ticked; `PROGRESS.md` closed out; `TRANSFER.md` written.
+- Verification at this gate (all on a fresh seed, server under the blackhole proxy on 8000):
+  `PY verify_seed.py` -> 31 checks, 0 failures · `PY -m unittest discover -s backend/tests` ->
+  Ran 81 tests, OK · `PY rehearse_demo.py` -> 17/17 beats clean, exit 0 ·
+  `PY make_frontend_spec.py` -> coverage: 21/21 scenarios verified through the API ·
+  `node --check` on all six UI scripts -> OK · §10 walked twice in the browser, second walk
+  clean with no fixes needed · network log for the walk stayed entirely on `127.0.0.1:8000`
+  (152/152 on that pre-audit build, 27/27 re-measured on the fixed build — see Gate 6b).
+- Left at: **CP6** — gate PASS.
+- Blockers: none. Nothing on the §14 cut list was cut.
+- Not done, and not doable by this build: the Phase 6 "backup video", the hosted live URL and
+  the judge submission itself need a human with a screen recorder and the contest portal. The
+  repo, the rehearsal harness and the screenshots path are ready for it — see TRANSFER.md
+  "What remains".
+- Final line: the build is complete; the demo runs offline from a fresh clone.

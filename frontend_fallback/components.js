@@ -59,9 +59,11 @@ window.NIRI = window.NIRI || {};
 
   /* ---------------------------------------------------------------- labels */
   var BANDS = { Good: '#34A853', Acceptable: '#A8D08D', Poor: '#F4B400', Unsafe: '#EA4335' };
+  /* The NAQI category names served by the backend (config/aqi.json) that mean "unhealthy".
+     Matching a served label — no number is compared to a threshold in the browser. */
+  var BAD_AQI = ['Poor', 'Very Poor', 'Severe'];
   var STATUS_CLASS = {
-    Open: 'open', Investigating: 'investigating', 'Action Taken': 'action', Resolved: 'resolved',
-    NEW: 'open', Emergency: 'emergency'
+    Open: 'open', Investigating: 'investigating', 'Action Taken': 'action', Resolved: 'resolved'
   };
   var SEVERITY_CLASS = { Emergency: 'emergency', High: 'high', Medium: 'medium', Low: 'low' };
 
@@ -333,7 +335,8 @@ window.NIRI = window.NIRI || {};
     svg.appendChild(arc);
     svg.appendChild(s('text', { x: cx, y: cy - 6, 'text-anchor': 'middle',
                                 style: 'font-size:20px;font-weight:700;fill:#1B2B22',
-                                text: Number(value).toFixed(0) }));
+                                /* the served NAQI, printed as sent — a 312.5 must not read 313 */
+                                text: value }));
     svg.appendChild(s('text', { x: cx, y: cy + 10, 'text-anchor': 'middle',
                                 style: 'font-size:9.5px;fill:#6B8278', text: aqi.category }));
     var host = el('div', { class: 'gauge-host' }, [svg,
@@ -391,4 +394,6 @@ window.NIRI = window.NIRI || {};
   NIRI.lineChart = lineChart; NIRI.legend = legend; NIRI.sparkline = sparkline;
   NIRI.bars = bars; NIRI.gauge = gauge;
   NIRI.BANDS = BANDS;
+  /* true when a served NAQI category name is one of the unhealthy bands. */
+  NIRI.isBadAqi = function (category) { return BAD_AQI.indexOf(category) >= 0; };
 }(window.NIRI));

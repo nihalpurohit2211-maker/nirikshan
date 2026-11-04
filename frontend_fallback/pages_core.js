@@ -54,16 +54,18 @@ window.NIRI = window.NIRI || {};
         host.appendChild(el('div', { class: 'grid cols-4 section' }, [
           NIRI.kpi('open cases', kpi.open_cases,
                    'cases that are not Resolved yet'),
-          NIRI.kpi('worst water quality', kpi.worst_wqi ? kpi.worst_wqi.score.toFixed(1) : '—',
+          NIRI.kpi('worst water quality', kpi.worst_wqi ? kpi.worst_wqi.score : '—',
                    [el('span', {}, [kpi.worst_wqi ? nodeLink(kpi.worst_wqi.node_id,
                         kpi.worst_wqi.name) : 'no sensor data']),
                     kpi.worst_wqi ? NIRI.bandBadge(kpi.worst_wqi) : null],
                    kpi.worst_wqi && kpi.worst_wqi.band === 'Unsafe' ? 'bad' : ''),
-          NIRI.kpi('worst air quality', kpi.worst_aqi ? kpi.worst_aqi.value.toFixed(0) : '—',
+          NIRI.kpi('worst air quality', kpi.worst_aqi ? kpi.worst_aqi.value : '—',
                    [el('span', {}, [kpi.worst_aqi ? link('#/air', kpi.worst_aqi.name) : '—']),
                     kpi.worst_aqi ? NIRI.badge(kpi.worst_aqi.category, 'plain',
                         'driven by ' + kpi.worst_aqi.driving_pollutant) : null],
-                   kpi.worst_aqi && kpi.worst_aqi.value > 200 ? 'bad' : ''),
+                   /* the served NAQI category drives the alert tone; no number is compared
+                      against a threshold in the browser. */
+                   kpi.worst_aqi && NIRI.isBadAqi(kpi.worst_aqi.category) ? 'bad' : ''),
           NIRI.kpi('complaints in 24 h', kpi.complaints_24h,
                    'as of ' + overview.demo_now)
         ]));
@@ -232,7 +234,9 @@ window.NIRI = window.NIRI || {};
 
     host.appendChild(el('div', { class: 'row', style: 'margin-bottom:10px' }, [
       NIRI.badge(node.type.replace(/_/g, ' '), 'plain'),
-      node.wqi ? NIRI.bandBadge(node.wqi) : NIRI.badge('no WQI — no sensor here', 'plain'),
+      /* The WQI is served at the top of the payload, not on node — /api/nodes/{id} puts
+         score/band/colour in detail.wqi and leaves node as the bare graph row. */
+      detail.wqi ? NIRI.bandBadge(detail.wqi) : NIRI.badge('no WQI — no sensor here', 'plain'),
       node.zone_id && node.zone_id !== node.id ? NIRI.badge('in ' + node.zone_id, 'plain') : null,
       el('span', { class: 'muted small', text: node.lat.toFixed(4) + ', ' + node.lon.toFixed(4) })
     ]));
@@ -263,13 +267,19 @@ window.NIRI = window.NIRI || {};
     }
 
     if (detail.wqi && detail.wqi.subindices) {
+      var subs = detail.wqi.subindices;
+      /* No per-sub-index band is served, so the only claim made here is the one the data
+         supports: the parameter with the highest served QI is the worst contributor. */
+      var worstQi = Object.keys(subs).reduce(function (m, k) {
+        return Math.max(m, subs[k].qi);
+      }, 0);
       host.appendChild(el('div', { style: 'margin-top:14px' }, [
         el('h4', { text: 'WQI sub-indices' }),
-        NIRI.bars(Object.keys(detail.wqi.subindices).map(function (key) {
-          var sub = detail.wqi.subindices[key];
+        NIRI.bars(Object.keys(subs).map(function (key) {
+          var sub = subs[key];
           return { label: key.replace(/_/g, ' ') + ' (' + sub.value + ')',
-                   value: sub.qi, shown: sub.qi.toFixed(0),
-                   color: sub.qi > 100 ? '#EA4335' : sub.qi > 60 ? '#F4B400' : '#2F855A' };
+                   value: sub.qi, shown: sub.qi + ' · weight ' + sub.weight,
+                   color: sub.qi === worstQi ? (detail.wqi.colour || '#EA4335') : '#9FB3A8' };
         }))
       ]));
     }
@@ -294,11 +304,15 @@ window.NIRI = window.NIRI || {};
     }
 
     if (detail.lab_tests && detail.lab_tests.length) {
-      host.appendChild(el('div', { style: 'margin-top:14px' }, NIRI.table(
-        [{ label: 'sample', get: function (t) { return t.sample_id || t.id; } },
-         { label: 'date', get: function (t) { return t.date || t.collected_at; } },
-         { label: 'result', get: function (t) { return t.result || t.coliform; } }],
-        detail.lab_tests)));
+      host.appendChild(el('div', { style: 'margin-top:14px' }, [
+        el('h4', { text: 'lab tests' }),
+        NIRI.table(
+          [{ label: 'sample', get: function (t) { return t.id; } },
+           { label: 'date', get: function (t) { return api.time(t.date); } },
+           { label: 'total coliform', get: function (t) { return t.total_coliform; } },
+           { label: 'E. coli', get: function (t) { return t.e_coli; } },
+           { label: 'method', get: function (t) { return t.note; } }],
+          detail.lab_tests)]));
     }
 
     var here = (complaintsPayload && complaintsPayload.complaints || []).filter(function (c) {
@@ -728,7 +742,8 @@ window.NIRI = window.NIRI || {};
       el('span', { class: 'muted small', text: ' — every report below it is in this one case' })])));
     bits.push(NIRI.kv('rule that fired', el('div', { class: 'rule-box', text: ev.rule })));
     if (ev.confidence !== null && ev.confidence !== undefined) {
-      bits.push(NIRI.kv('confidence', (ev.confidence * 100).toFixed(0) + '% (from the rules engine)'));
+      bits.push(NIRI.kv('confidence (0–1)', el('span', {}, [String(ev.confidence),
+                  el('span', { class: 'muted', text: ' · from the rules engine' })])));
     }
 
     if (row.domain === 'water') {
@@ -858,10 +873,15 @@ window.NIRI = window.NIRI || {};
 
   function monitorTable(ev) {
     var readings = ev.readings || {};
-    var keys = Object.keys(readings).filter(function (k) { return k !== 'timestamp'; });
+    /* an air reading row carries its station id and timestamp alongside the pollutants */
+    var keys = Object.keys(readings).filter(function (k) {
+      return k !== 'timestamp' && k !== 'station_id';
+    });
     return NIRI.table([
-      { label: 'pollutant', get: function (k) { return k.toUpperCase().replace(/_/, ' '); } },
-      { label: 'µg/m³', num: true, get: function (k) { return readings[k]; } }
+      /* the served key carries the unit for water (turbidity_ntu, tds_mgl); air readings
+         arrive as bare pollutant codes, so no unit column is asserted here. */
+      { label: 'parameter', get: function (k) { return k.toUpperCase().replace(/_/g, ' '); } },
+      { label: 'value', num: true, get: function (k) { return readings[k]; } }
     ], keys);
   }
 
@@ -888,25 +908,29 @@ window.NIRI = window.NIRI || {};
     if (row.domain !== 'water') {
       return el('section', { class: 'card section' }, [
         el('h3', { text: 'Trace' }),
-        NIRI.empty('this is a ' + row.domain + ' case: the network trace answers 400 for it, '
-                   + 'so there is no upstream path to draw')
+        NIRI.empty('not a water case: the network trace answers 400 for ' + row.domain +
+                   ', so there is no upstream path to draw')
       ]);
     }
-    var box = el('section', { class: 'card section' }, [
+    /* GET /api/cases/{id} already carries the trace, so the case page paints it from that
+       payload instead of asking /api/trace/{id} for the same rows a second time. */
+    var trace = detail.trace;
+    if (!trace) {
+      return el('section', { class: 'card section' }, [
+        el('h3', { text: 'Trace Upstream' }),
+        NIRI.empty('no upstream path on this case')
+      ]);
+    }
+    return el('section', { class: 'card section' }, [
       el('h3', { text: 'Trace Upstream' }),
-      NIRI.loading('tracing…')
-    ]);
-    api.trace(row.id).then(function (trace) {
-      NIRI.clear(box);
-      box.appendChild(el('h3', { text: 'Trace Upstream' }));
-      box.appendChild(el('div', { class: 'row' }, [
+      el('div', { class: 'row' }, [
         NIRI.badge(trace.hops + ' hops', 'plain'),
         trace.worst_pipe ? NIRI.badge('worst section ' + trace.worst_pipe.id +
                                       ' · k=' + trace.worst_pipe_decay_k, 'high') : null
-      ]));
-      box.appendChild(el('p', { class: 'draft-text', style: 'font-size:13.5px;margin-top:8px',
-                                text: trace.explanation }));
-      box.appendChild(NIRI.table([
+      ]),
+      el('p', { class: 'draft-text', style: 'font-size:13.5px;margin-top:8px',
+                text: trace.explanation }),
+      NIRI.table([
         { label: '#', num: true, get: function (s, i) { return i + 1; } },
         { label: 'node', get: function (s) { return nodeLink(s.node_id, s.node_name); } },
         { label: 'type', get: function (s) { return s.node_type.replace(/_/g, ' '); } },
@@ -914,15 +938,10 @@ window.NIRI = window.NIRI || {};
             return s.pipe ? el('code', { text: s.pipe.id + ' ' + s.pipe.material + ' '
                                   + s.pipe.diameter_mm + ' mm, laid ' + s.pipe.install_year })
                           : el('span', { class: 'muted', text: 'source end' }); } }
-      ], trace.steps || {}));
-      box.appendChild(el('p', { style: 'margin-top:8px' },
-                          link('#/map?t=' + row.id, 'draw this on the map →')));
-    }).catch(function (err) {
-      NIRI.clear(box);
-      box.appendChild(el('h3', { text: 'Trace Upstream' }));
-      box.appendChild(ui.errorBox(err));
-    });
-    return box;
+      ], trace.steps || []),
+      el('p', { style: 'margin-top:8px' },
+          link('#/map?t=' + row.id, 'draw this on the map →'))
+    ]);
   }
 
   /* Draft + approve. The stamp is a fact about the payload, not a style choice. */
@@ -991,7 +1010,7 @@ window.NIRI = window.NIRI || {};
               draft = { text: out.text, explanation: out.explanation, status: out.status,
                         ai: out.ai, approved: false };
               paintDraft();
-              ui.toast('drafted as DRAFT — nothing was sent', 'ok');
+              ui.toast('drafted as ' + out.status + ' — nothing was sent', 'ok');
               reloadTimeline();
             }).catch(function (err) { ui.toast(err.detail, 'err'); });
           } } }),

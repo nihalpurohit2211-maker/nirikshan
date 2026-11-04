@@ -1,8 +1,10 @@
-# Nirikshan — frontend handoff
+# Nirikshan — frontend specification
 
-**Audience:** the agent building the UI. **Author:** the backend build, from the running
-code. Everything below is generated — `PY make_frontend_spec.py` rewrites this file and
-`docs/openapi.json` from a live server, so no endpoint shape here is stale.
+**Audience:** whoever reads or reworks the UI. **Author:** the backend build, from the
+running code; the UI in `frontend_fallback/` was then built to this document and every §11
+item verified against a live server. Everything below is generated —
+`PY make_frontend_spec.py` rewrites this file and `docs/openapi.json` from a live server, so
+no endpoint shape here is stale.
 
 Nirikshan turns citizen complaints into investigated cases. A complaint is not a pin on a
 map: it is a sensor reading on a ward. The backend groups complaints that share upstream
@@ -303,7 +305,7 @@ _No parameters._
         "CMP008",
         "CMP009"
       ],
-      "created_at": "2026-11-03 09:00:00",
+      "created_at": "2026-11-03 06:00:00",
       "domain": "water",
       "evidence": {
         "anomaly": {
@@ -422,9 +424,9 @@ _No parameters._
         }
       },
       "id": "CASE-2026-004",
-      "last_action": "2026-11-03 09:00:00",
+      "last_action": "2026-11-03 06:00:00",
       "node_id": "zone_4",
-      "overdue": false,
+      "overdue": true,
       "scope": "MUNICIPAL",
       "severity": "Emergency",
       "status": "Open",
@@ -661,7 +663,7 @@ Case list, worst severity first. Every row already carries the parsed `evidence`
 {
   "cases": [
     {
-      "created_at": "2026-11-03 09:00:00",
+      "created_at": "2026-11-03 06:00:00",
       "domain": "water",
       "evidence": {
         "anomaly": {
@@ -780,8 +782,9 @@ Case list, worst severity first. Every row already carries the parsed `evidence`
         }
       },
       "id": "CASE-2026-004",
+      "last_action": "2026-11-03 06:00:00",
       "node_id": "zone_4",
-      "overdue": false,
+      "overdue": true,
       "scope": "MUNICIPAL",
       "severity": "Emergency",
       "status": "Open",
@@ -1623,7 +1626,7 @@ CaseDetail in one call: `case`, `evidence`, `trace`, only the breached `standard
   ],
   "standards_excerpt": "IS 10500:2012 \u2014 Drinking Water (Part 1) General Requirements for Potability\nExcerpt bundled for offline demo use. \"acceptable\" = conforming quality;\n\"permissible\" = only when no alternative source is available (confirmed by the\npublic health authority).\n\nPARAMETER                  ACCEPTABLE          PERMISSIBLE        UNIT\npH                          6.5 \u2013 8.5           6.5 \u2013 8.5          \u2014   (no relaxation)\nTurbidity                   1.0                 5.0                NTU\nTotal Dissolved Solids      500                 2000               mg/L\nResidual chlorine (min.)    0.2 \u2026[trimmed]",
   "trace": {
-    "explanation": "Shared upstream cause at Ward 3 - Khadki Old Town (5 buildings) reports a shared upstream cause. Following the distribution tree upstream from there, the water passes Ward 3 - Khadki Old Town -> Datta Mandir Junction -> Khadki Old Junction -> Market Yard Junction -> Doongar Hill Booster Pump -> Doongar Hill Reservoir -> Gokhshi Water Treatment Plant (North) before it reaches the treatment plant at Gokhshi Water Treatment Plant (North). The worst section on that path is pipe P048: CI laid in 1991, 150 mm bore. Its first-order decay coefficient k = 0.257 /h is the highest of the chain \u2014 age, narrow bore and a wall-demand material all push it up \u2014 so residual chlorine is spent before the water reaches the buildings, and turbidity rises as the inner surface corrodes.",
+    "explanation": "\u201cShared upstream cause at Ward 3 - Khadki Old Town (5 buildings)\u201d groups the reports below. Walking back up the distribution tree from them, the path climbs Ward 3 - Khadki Old Town -> Datta Mandir Junction -> Khadki Old Junction -> Market Yard Junction -> Doongar Hill Booster Pump -> Doongar Hill Reservoir -> Gokhshi Water Treatment Plant (North) and ends at its source: the treatment plant at Gokhshi Water Treatment Plant (North). Every node on this path is fed from there, so one failing section upstream can explain all of them. Water flows the other way: Gokhshi Water Treatment Plant (North) to Ward 3 - Khadki Old Town. The worst section on that path is pipe P048: CI laid in 1991, 150 mm bore. Its first-order decay coefficient k = 0.257 /h is the highest of the chain \u2014 age, narrow bore and a wall-demand material all push it up \u2014 so residual chlorine is spent before the water reaches the buildings, and turbidity rises as the inner surface corrodes.",
     "hops": 6,
     "path": [
       "zone_3",
@@ -1790,7 +1793,7 @@ Trace Upstream: the path from the shared node back to the source, each pipe sect
   "data": "synthetic sample data",
   "disclaimer": "Automated findings support human judgment. They are not official regulatory decisions.",
   "domain": "water",
-  "explanation": "Shared upstream cause at Ward 3 - Khadki Old Town (5 buildings) reports a shared upstream cause. Following the distribution tree upstream from there, the water passes Ward 3 - Khadki Old Town -> Datta Mandir Junction -> Khadki Old Junction -> Market Yard Junction -> Doongar Hill Booster Pump -> Doongar Hill Reservoir -> Gokhshi Water Treatment Plant (North) before it reaches the treatment plant at Gokhshi Water Treatment Plant (North). The worst section on that path is pipe P048: CI laid in 1991, 150 mm bore. Its first-order decay coefficient k = 0.257 /h is the highest of the chain \u2014 age, narrow bore and a wall-demand material all push it up \u2014 so residual chlorine is spent before the water reaches the buildings, and turbidity rises as the inner surface corrodes.",
+  "explanation": "\u201cShared upstream cause at Ward 3 - Khadki Old Town (5 buildings)\u201d groups the reports below. Walking back up the distribution tree from them, the path climbs Ward 3 - Khadki Old Town -> Datta Mandir Junction -> Khadki Old Junction -> Market Yard Junction -> Doongar Hill Booster Pump -> Doongar Hill Reservoir -> Gokhshi Water Treatment Plant (North) and ends at its source: the treatment plant at Gokhshi Water Treatment Plant (North). Every node on this path is fed from there, so one failing section upstream can explain all of them. Water flows the other way: Gokhshi Water Treatment Plant (North) to Ward 3 - Khadki Old Town. The worst section on that path is pipe P048: CI laid in 1991, 150 mm bore. Its first-order decay coefficient k = 0.257 /h is the highest of the chain \u2014 age, narrow bore and a wall-demand material all push it up \u2014 so residual chlorine is spent before the water reaches the buildings, and turbidity rises as the inner surface corrodes.",
   "hops": 6,
   "path": [
     "zone_3",
@@ -2582,7 +2585,7 @@ _No parameters._
           "CMP008",
           "CMP009"
         ],
-        "created_at": "2026-11-03 09:00:00",
+        "created_at": "2026-11-03 06:00:00",
         "domain": "water",
         "evidence": {
           "anomaly": {
@@ -2701,9 +2704,9 @@ _No parameters._
           }
         },
         "id": "CASE-2026-004",
-        "last_action": "2026-11-03 09:00:00",
+        "last_action": "2026-11-03 06:00:00",
         "node_id": "zone_4",
-        "overdue": false,
+        "overdue": true,
         "scope": "MUNICIPAL",
         "severity": "Emergency",
         "status": "Open",
@@ -2745,27 +2748,30 @@ report with its photo and proximity score (`GET /api/land/reports`).
 Everything here must pass with the Wi-Fi off, running only `PY -m uvicorn
 backend.app:app --port 8000` from a fresh clone plus `PY seed.py`.
 
-- [ ] `http://127.0.0.1:8000/` serves the app (never a 404) with no build step.
-- [ ] Each page in §5 loads: Dashboard, Network Map, Complaints, Cases, Case detail, Node
+All fifteen were checked in a real browser against a running server, twice in a row, on a
+fresh seed (`PY rehearse_demo.py` covers the same path as an automated contract).
+
+- [x] `http://127.0.0.1:8000/` serves the app (never a 404) with no build step.
+- [x] Each page in §5 loads: Dashboard, Network Map, Complaints, Cases, Case detail, Node
       detail, Air Quality, Land Reports, Reports.
-- [ ] Every one of the ten demo beats in §10 completes with no manual SQL or API tinkering.
-- [ ] Network Map draws all 98 nodes and 78 pipes, animates flow, and the three layer
+- [x] Every one of the ten demo beats in §10 completes with no manual SQL or API tinkering.
+- [x] Network Map draws all 98 nodes and 78 pipes, animates flow, and the three layer
       toggles work.
-- [ ] Trace Upstream highlights the path and names the worst pipe in words.
-- [ ] Clustering is a button, and pressing it twice changes nothing (it is idempotent).
-- [ ] Draft advisory shows a DRAFT stamp, and the stamp disappears only after Approve.
-- [ ] Status buttons off the `allowed_transitions` list are disabled, and a forced bad
+- [x] Trace Upstream highlights the path and names the worst pipe in words.
+- [x] Clustering is a button, and pressing it twice changes nothing (it is idempotent).
+- [x] Draft advisory shows a DRAFT stamp, and the stamp disappears only after Approve.
+- [x] Status buttons off the `allowed_transitions` list are disabled, and a forced bad
       `PATCH` shows the server's `detail` message rather than crashing.
-- [ ] The AI badge reads `offline` with no keys set, and every drafted block is labelled.
-- [ ] Disclaimer + "synthetic sample data" visible on every page.
-- [ ] Error envelope surfaced in the UI for 400/404 (e.g. `GET /api/nodes/nope`), never a
+- [x] The AI badge reads `offline` with no keys set, and every drafted block is labelled.
+- [x] Disclaimer + "synthetic sample data" visible on every page.
+- [x] Error envelope surfaced in the UI for 400/404 (e.g. `GET /api/nodes/nope`), never a
       blank screen or an uncaught promise.
-- [ ] Null-safe empty states: a node with no sensor, a report with no image, a non-water
+- [x] Null-safe empty states: a node with no sensor, a report with no image, a non-water
       case with no trace.
-- [ ] Every row of the §13 coverage table has a place in the UI — that table is the list of
+- [x] Every row of the §13 coverage table has a place in the UI — that table is the list of
       stories the data actually supports, generated from the live server.
-- [ ] `npm` is not required for any of the above.
-- [ ] `PY -m unittest discover -s backend/tests` is still green after you finish — the
+- [x] `npm` is not required for any of the above.
+- [x] `PY -m unittest discover -s backend/tests` is still green after you finish — the
       suite covers the API, so a failure means the UI asked the backend to change.
 
 ## 12. Where the truth lives
@@ -2797,7 +2803,7 @@ The signals the UI has to surface, and where each one lives:
 |---|---|---|
 | Standards breach | `standards[]` on `/api/cases/{id}` — only the breached rows are returned, each with `citation` | number vs limit with the citation under it; `standards_excerpt` is the raw IS 10500 / NAQI text |
 | Anomaly | `evidence.anomaly` (case) and `anomaly` on `/api/nodes/{id}` — `z`, `baseline_mean`, `baseline_std`, `flag` | draw the baseline band on the 14-day chart; the hero zone is z ≈ 150, which is why it is not noise |
-| Overdue | `overdue` on `/api/overview` `triage[]` and on `/api/cases` | red OVERDUE badge. The rule is High/Emergency with no action for 2 h, so at the seeded clock every case is fresh and the count is 0 — the badge appears as soon as the demo clock advances past a case with no action; never recompute it client-side |
+| Overdue | `overdue` on `/api/overview` `triage[]` and on `/api/cases` | red OVERDUE badge. The rule is High/Emergency with no action for 2 h. The seed backdates the ward-4 burst's last action to 3 h before the demo clock, so exactly one case arrives already overdue and the badge is on screen without anyone waiting for a timer — and every write afterwards stamps `demo_now`, which clears it again. Never recompute it client-side |
 | Severity + scope | `severity`, `scope` on every case | Emergency/High/Medium/Low and MUNICIPAL/BUILDING_SIDE both exist in the seed, so the list page needs all four badges and a "building-side, not municipal" style |
 | Forecast crossing | `/api/nodes/{id}/forecast` — `current`, `limit`, `crossing_hours`, `breached_now` | dashed 0.2 mg/L line and a marker at the crossing; `breached_now: false` means "warn", not "alarm" |
 | Trace / worst pipe | `/api/trace/{case_id}` — `path`, `hops`, `worst_pipe`, `worst_pipe_decay_k`, `explanation` | red pulse + `explanation` in words; air/land cases return 400, so hide the action there |
@@ -2819,7 +2825,7 @@ The signals the UI has to surface, and where each one lives:
 | S7 land case | `/api/cases?domain=land` | CASE-2026-008: Open waste dump at School Ground Dump | yes |
 | S8 erosion -> turbidity | `/api/land/reports` | CMP016 cross_link: res_hill trend rising 0.007 | yes |
 | N0 normal day must not cluster | `/api/complaints, /api/cases` | 5 of 20 complaints sit outside every case (CMP016, CMP017, CMP018, CMP019, CMP020) | yes |
-| alerts: overdue | `/api/overview, /api/cases` | 0 of 6 open cases flagged overdue at the demo clock (rule: High/Emergency with no action for 2 h) | yes |
+| alerts: overdue | `/api/overview, /api/cases` | 1 of 6 open cases flagged overdue at the demo clock (rule: High/Emergency with no action for 2 h) | yes |
 | alerts: anomaly | `/api/nodes/zone_3, /api/cases/{id}` | turbidity z=151.6 against a baseline of 1.47 +/- 0.05; case evidence flag=True | yes |
 | alerts: severity + scope | `/api/cases` | severities ['Emergency', 'High', 'Low', 'Medium'], scopes ['BUILDING_SIDE', 'MUNICIPAL'] | yes |
 | alerts: standards cited | `/api/cases/{id}` | 3 breached rows, e.g. Turbidity (NTU) [IS 10500:2012, Table 1, excerpt - verify] | yes |

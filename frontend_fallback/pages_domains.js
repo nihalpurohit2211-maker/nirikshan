@@ -11,13 +11,16 @@
   function caseLink(id, label) { return el('a', { href: '#/cases/' + id, class: 'link', text: label || id }); }
 
   /* ------------------------------------------------------------------------ air */
+  /* `key` indexes readings (lowercase, as /api/air serves them), `qi` indexes
+     aqi.subindices (the NAQI's own pollutant names: PM2.5, NO2, O3). The pretty `label` is
+     for humans only — matching on it silently dropped three of the six sub-indices. */
   var POLLUTANTS = [
-    { key: 'pm25', label: 'PM2.5', unit: 'µg/m³' },
-    { key: 'pm10', label: 'PM10', unit: 'µg/m³' },
-    { key: 'no2', label: 'NO₂', unit: 'µg/m³' },
-    { key: 'so2', label: 'SO₂', unit: 'µg/m³' },
-    { key: 'o3', label: 'O₃', unit: 'µg/m³' },
-    { key: 'co', label: 'CO', unit: 'mg/m³' }
+    { key: 'pm25', qi: 'PM2.5', label: 'PM2.5', unit: 'µg/m³' },
+    { key: 'pm10', qi: 'PM10', label: 'PM10', unit: 'µg/m³' },
+    { key: 'no2', qi: 'NO2', label: 'NO₂', unit: 'µg/m³' },
+    { key: 'so2', qi: 'SO2', label: 'SO₂', unit: 'µg/m³' },
+    { key: 'o3', qi: 'O3', label: 'O₃', unit: 'µg/m³' },
+    { key: 'co', qi: 'CO', label: 'CO', unit: 'mg/m³' }
   ];
 
   function pollutantTable(latest) {
@@ -26,7 +29,9 @@
       { label: 'reading', num: true, get: function (p) { return latest[p.key]; } },
       { label: 'unit', get: function (p) { return p.unit; } },
       { label: 'sub-index', num: true,
-        get: function (p) { return latest.__sub && latest.__sub[p.label] ? latest.__sub[p.label] : null; } }
+        /* a served 0 (CO at these concentrations) is a reading, not a missing row */
+        get: function (p) { var qi = latest.__sub && latest.__sub[p.qi];
+                            return qi === undefined || qi === null ? null : qi; } }
     ], POLLUTANTS);
   }
 
@@ -42,12 +47,14 @@
         isWorst ? NIRI.badge('worst', 'high', 'the station /api/air names as worst') : null
       ]),
       NIRI.gauge(aqi, categories),
-      el('p', { class: 'small muted' }, 'reading at ' + api.time(station.latest.timestamp)
+      el('p', { class: 'small muted' }, 'reading at ' + api.time(latest.timestamp)
         + ' · NAQI from the served sub-indices'),
-      NIRI.bars(POLLUTANTS.filter(function (p) { return sub[p.label]; }).map(function (p) {
-        return { label: p.label, value: sub[p.label].subindex,
-                 shown: sub[p.label].subindex + ' @ ' + sub[p.label].concentration,
-                 color: sub[p.label].subindex >= (aqi.value || 0) ? (aqi.colour || '#EA4335') : '#9FB3A8' };
+      NIRI.bars(POLLUTANTS.filter(function (p) { return sub[p.qi]; }).map(function (p) {
+        return { label: p.label, value: sub[p.qi].subindex,
+                 shown: sub[p.qi].subindex + ' @ ' + sub[p.qi].concentration,
+                 /* the driver is served — comparing sub-indices to the NAQI here would
+                    re-run the max() the backend already did. */
+                 color: p.qi === aqi.driving_pollutant ? (aqi.colour || '#EA4335') : '#9FB3A8' };
       })),
       pollutantTable(latest),
       el('div', { class: 'actions', style: 'margin-top:10px' }, [
@@ -114,9 +121,12 @@
         var projected = (forecast.projected || []).map(function (v) { return typeof v === 'number' ? v : v.value; });
 
         host.appendChild(el('div', { class: 'grid cols-3' }, [
-          NIRI.kpi('worst monitor', worst.aqi ? worst.aqi.value.toFixed(1) : '—',
-                   [worst.name || '—', worst.aqi ? NIRI.badge(worst.aqi.category, 'high') : null,
-                    worst.aqi ? NIRI.badge('drives ' + worst.aqi.driving_pollutant, 'plain') : null], 'bad'),
+          NIRI.kpi('worst monitor', worst.aqi ? worst.aqi.value : '—',
+                   [worst.name || '—',
+                    worst.aqi ? NIRI.badge(worst.aqi.category,
+                                            NIRI.isBadAqi(worst.aqi.category) ? 'high' : 'plain') : null,
+                    worst.aqi ? NIRI.badge('drives ' + worst.aqi.driving_pollutant, 'plain') : null],
+                   worst.aqi && NIRI.isBadAqi(worst.aqi.category) ? 'bad' : ''),
           NIRI.kpi('monitors reporting', String(air.stations.length),
                    'every station node in /api/air, none hidden'),
           NIRI.kpi('projected ' + (forecast.parameter || '—'),
@@ -511,8 +521,12 @@
                          'rendered from the server’s `overdue` flag, never recomputed here')
               ]),
               el('p', { class: 'small muted', style: 'margin-top:10px' },
-                'at the seeded clock nothing is 2 h actionless yet, because every case is created at '
-                + 'the demo clock — the badge appears the moment the clock passes a case'),
+                overdue.length
+                  ? overdue.map(function (c) { return c.id; }).join(', ') +
+                    ' already sits past the server’s 2 h rule at the seeded clock — the flag is ' +
+                    'read from the payload, not counted down here'
+                  : 'nothing is 2 h actionless at the demo clock — the badge appears the moment '
+                    + 'a case ages past the server’s window'),
               el('div', { style: 'margin-top:10px' }, NIRI.table([
                 { label: 'case', get: function (c) { return caseLink(c.id, c.id); } },
                 { label: 'status', get: function (c) { return NIRI.statusBadge(c.status); } },
@@ -553,6 +567,8 @@
     }
   };
 
+  /* Orders the severity labels the server already assigned to these cases; it decides
+     nothing and is only used for the "worst severity" caption on a domain card. */
   function worstSeverity(rows) {
     var order = ['Emergency', 'High', 'Medium', 'Low'];
     for (var i = 0; i < order.length; i++) {
@@ -560,26 +576,25 @@
     }
     return '—';
   }
-  function barColour(status) {
-    return status === 'Action Taken' ? '#34A853' : status === 'Resolved' ? '#2F855A'
-         : status === 'Investigating' ? '#F4B400' : status === 'NEW' ? '#EA4335' : '#EA4335';
-  }
+  var STATUS_BAR = { Open: '#EA4335', Investigating: '#F4B400',
+                     'Action Taken': '#34A853', Resolved: '#2F855A' };
+  function barColour(status) { return STATUS_BAR[status] || '#9FB3A8'; }
 
   function summaryCard(out, cases) {
     var snap = out.snapshot || {};
     var k = snap.kpis || {};
     return el('div', { class: 'draft-card' }, [
       el('div', { class: 'stamp-row' }, [
-        el('span', { class: 'draft-stamp', text: 'DRAFT — ' + out.status + ', not sent' }),
+        el('span', { class: 'draft-stamp', text: out.status + ' — not sent' }),
         NIRI.badge('written by ' + (out.ai || 'offline') + ' provider', 'plain'),
         el('span', { class: 'small muted', text: 'snapshot at ' + snap.demo_now })
       ]),
       el('p', { class: 'draft-text', text: out.text }),
       el('div', { class: 'grid cols-4', style: 'margin-top:12px' }, [
         NIRI.kpi('open cases', String(k.open_cases != null ? k.open_cases : '—'), 'from the snapshot'),
-        NIRI.kpi('worst WQI', k.worst_wqi ? k.worst_wqi.score.toFixed(1) : '—',
+        NIRI.kpi('worst WQI', k.worst_wqi ? k.worst_wqi.score : '—',
                  [k.worst_wqi ? k.worst_wqi.name : '', k.worst_wqi ? NIRI.bandBadge(k.worst_wqi) : null]),
-        NIRI.kpi('worst NAQI', k.worst_aqi ? k.worst_aqi.value.toFixed(0) : '—',
+        NIRI.kpi('worst NAQI', k.worst_aqi ? k.worst_aqi.value : '—',
                  [k.worst_aqi ? k.worst_aqi.name : '',
                   k.worst_aqi ? NIRI.badge(k.worst_aqi.category, 'plain') : null]),
         NIRI.kpi('complaints 24 h', String(k.complaints_24h != null ? k.complaints_24h : '—'), 'window from config')

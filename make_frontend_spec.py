@@ -543,7 +543,7 @@ The signals the UI has to surface, and where each one lives:
 |---|---|---|
 | Standards breach | `standards[]` on `/api/cases/{id}` — only the breached rows are returned, each with `citation` | number vs limit with the citation under it; `standards_excerpt` is the raw IS 10500 / NAQI text |
 | Anomaly | `evidence.anomaly` (case) and `anomaly` on `/api/nodes/{id}` — `z`, `baseline_mean`, `baseline_std`, `flag` | draw the baseline band on the 14-day chart; the hero zone is z ≈ 150, which is why it is not noise |
-| Overdue | `overdue` on `/api/overview` `triage[]` and on `/api/cases` | red OVERDUE badge. The rule is High/Emergency with no action for 2 h, so at the seeded clock every case is fresh and the count is 0 — the badge appears as soon as the demo clock advances past a case with no action; never recompute it client-side |
+| Overdue | `overdue` on `/api/overview` `triage[]` and on `/api/cases` | red OVERDUE badge. The rule is High/Emergency with no action for 2 h. The seed backdates the ward-4 burst's last action to 3 h before the demo clock, so exactly one case arrives already overdue and the badge is on screen without anyone waiting for a timer — and every write afterwards stamps `demo_now`, which clears it again. Never recompute it client-side |
 | Severity + scope | `severity`, `scope` on every case | Emergency/High/Medium/Low and MUNICIPAL/BUILDING_SIDE both exist in the seed, so the list page needs all four badges and a "building-side, not municipal" style |
 | Forecast crossing | `/api/nodes/{id}/forecast` — `current`, `limit`, `crossing_hours`, `breached_now` | dashed 0.2 mg/L line and a marker at the crossing; `breached_now: false` means "warn", not "alarm" |
 | Trace / worst pipe | `/api/trace/{case_id}` — `path`, `hops`, `worst_pipe`, `worst_pipe_decay_k`, `explanation` | red pulse + `explanation` in words; air/land cases return 400, so hide the action there |
@@ -556,11 +556,13 @@ The signals the UI has to surface, and where each one lives:
 
 PROSE = [
     """
-# Nirikshan — frontend handoff
+# Nirikshan — frontend specification
 
-**Audience:** the agent building the UI. **Author:** the backend build, from the running
-code. Everything below is generated — `PY make_frontend_spec.py` rewrites this file and
-`docs/openapi.json` from a live server, so no endpoint shape here is stale.
+**Audience:** whoever reads or reworks the UI. **Author:** the backend build, from the
+running code; the UI in `frontend_fallback/` was then built to this document and every §11
+item verified against a live server. Everything below is generated —
+`PY make_frontend_spec.py` rewrites this file and `docs/openapi.json` from a live server, so
+no endpoint shape here is stale.
 
 Nirikshan turns citizen complaints into investigated cases. A complaint is not a pin on a
 map: it is a sensor reading on a ward. The backend groups complaints that share upstream
