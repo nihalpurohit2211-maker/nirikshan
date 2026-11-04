@@ -756,3 +756,94 @@ button, .btn, .ghost { border-radius: 10px; }
 .ghost-card h3 { margin-bottom: 6px; font-size: 14px; }
 .ghost-rows { display: grid; gap: 8px; margin-top: 14px; }
 .ghost-rows i { display: block; height: 9px; border-radius: 5px; background: var(--page-sunk); }
+
+/* ---------------------------------------------------------- map tool panel
+   The map page keeps its controls in the rail, not floating on the canvas: a
+   grouped panel with labelled switches, counts and a live zoom readout. */
+.map-side { display: grid; gap: 16px; align-content: start; min-width: 0; }
+.map-canvas-col { min-width: 0; }
+.map-panel { padding: 16px 18px 14px; }
+.map-panel-head {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+}
+.map-panel-head h3 { margin: 0; font-size: 15px; color: var(--forest); }
+.map-panel-note {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--muted);
+}
+.map-panel-group { margin-top: 13px; padding-top: 12px; border-top: 1px solid var(--line); }
+.map-panel-group:first-of-type { border-top: 0; padding-top: 0; }
+.map-panel-label {
+  margin: 0 0 8px; font-size: 9.5px; font-weight: 700; letter-spacing: .13em;
+  text-transform: uppercase; color: #8a8177;
+}
+.map-zoom { display: flex; align-items: center; gap: 8px; }
+.map-panel-btn {
+  min-width: 40px; height: 40px; padding: 0 12px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--surface);
+  color: var(--forest); font-size: 16px; font-weight: 700; cursor: pointer;
+  transition: background .14s, border-color .14s;
+}
+.map-panel-btn:hover { background: var(--page-sunk, #f3efe3); border-color: #cfc8b8; }
+.map-panel .map-panel-btn.ghost { color: var(--ink-2); font-size: 12.5px; font-weight: 600; }
+.map-zoom-level {
+  min-width: 46px; text-align: center; font-size: 12px; color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.map-zoom-reset { margin-left: auto; }
+
+.map-switch {
+  display: flex; align-items: center; gap: 10px; min-height: 40px;
+  cursor: pointer; user-select: none;
+}
+.map-switch input {
+  position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;
+}
+.map-switch-track {
+  position: relative; flex: none; width: 34px; height: 20px; border-radius: 999px;
+  background: #d8d2c4; transition: background .15s;
+}
+.map-switch-track i {
+  position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+  border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(28, 25, 23, .22);
+  transition: transform .15s;
+}
+.map-switch.is-on .map-switch-track { background: var(--forest); }
+.map-switch.is-on .map-switch-track i { transform: translateX(14px); }
+.map-switch-label { flex: 1; min-width: 0; font-size: 13px; color: var(--ink); }
+.map-switch-count {
+  font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+.map-switch:focus-within .map-switch-track {
+  outline: 2px solid var(--forest); outline-offset: 2px;
+}
+.map-band-row {
+  display: flex; align-items: center; gap: 9px;
+  padding: 4px 0; font-size: 12.5px; color: var(--ink-2);
+}
+.map-band-sw { flex: none; width: 11px; height: 11px; border-radius: 50%; }
+.map-band-name { flex: 1; min-width: 0; }
+.map-band-count {
+  font-weight: 700; color: var(--forest); font-variant-numeric: tabular-nums;
+}
+.map-band-row.is-muted .map-band-count { color: var(--muted); font-weight: 500; }
+.map-panel-foot {
+  margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--line);
+  font-size: 10.5px; line-height: 1.5; color: var(--muted);
+}
+/* the optional Google basemap switch mounts itself into .map-layers-body */
+.map-panel .map-layer-row {
+  display: flex; align-items: center; gap: 9px; min-height: 38px; font-size: 12.5px;
+}
+.map-caption { margin: 8px 2px 0; }
+
+@media (max-width: 1180px) {
+  .map-side { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 700px) {
+  .map-panel { padding: 14px 15px 12px; }
+  .map-panel-btn { height: 42px; min-width: 44px; }
+  .map-switch { min-height: 44px; }
+  .map-caption { font-size: 11px; }
+}

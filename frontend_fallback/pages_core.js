@@ -143,8 +143,10 @@ window.NIRI = window.NIRI || {};
         NIRI.clear(host);
 
         var traceCard = el('div', { class: 'card' });
+        var panelHost = el('div', { class: 'map-panel-host' });
         var map = NIRI.map.create({
           nodes: network.nodes, pipes: network.pipes, aspect: 0.72,
+          panelHost: panelHost,
           onSelect: function (node) { openNodePanel(node.id); },
           onTraceStep: function (step) { openNodePanel(step.node_id); }
         });
@@ -155,12 +157,12 @@ window.NIRI = window.NIRI || {};
           onSelect: function (node) { openNodePanel(node.id); }
         });
 
-        host.appendChild(el('div', { class: 'split-rail section', style: '--rail:340px' }, [
-          el('div', {}, [map.element,
-            el('p', { class: 'small muted', style: 'margin-top:8px' },
+        host.appendChild(el('div', { class: 'split-rail section', style: '--rail:360px' }, [
+          el('div', { class: 'map-canvas-col' }, [map.element,
+            el('p', { class: 'small muted map-caption' },
               'schematic base map — not to scale; synthetic city data · drag to pan · wheel '
-              + 'or +/− to zoom · click a node for its panel · pipe thickness ∝ log(diameter)')]),
-          traceCard
+              + 'or the panel’s +/− to zoom · click a node for its panel')]),
+          el('div', { class: 'map-side' }, [panelHost, traceCard])
         ]));
 
         var waterCases = cases.filter(function (c) { return c.domain === 'water'; });
