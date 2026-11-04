@@ -415,9 +415,36 @@
   .city-display { font-size: 26px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .city-live-dot { animation: none; }
-  .city-stat, .hotspot, .bm-zone { transition: none; }
+  .city-live-dot, .hotspot-track i { animation: none; }
 }
+
+/* Shared visual language for the redesigned overview and live air summary. */
+.city-page { gap: 20px; }
+.city-hero { border-radius: 20px; padding: 30px 32px; }
+.city-display { font-size: clamp(28px, 3vw, 40px); }
+.city-map-grid, .city-lower { gap: 20px; }
+.city-map-card, .city-side, .city-panel, .city-mini { border-radius: 16px; }
+.city-map-head, .city-net-head { padding: 20px 22px 0; }
+.city-map-body, .city-net-body { padding: 8px 16px 14px; }
+.city-map-foot { padding: 0 22px 16px; }
+.pulse-card { border-top: 3px solid var(--forest); }
+.pulse-card .pulse-head h3 { color: var(--ink); }
+.city-side-head h3, .city-panel-head h3, .city-mini h3 { color: var(--ink); }
+
+/* Air cards use the served NAQI colours as accents without turning the page into a warning wall. */
+.station-grid { gap: 16px; }
+.station-grid > .card, .air-card, .station-card { border-radius: 16px; transition: transform 150ms ease, box-shadow 150ms ease; }
+.station-grid > .card:hover, .air-card:hover, .station-card:hover { transform: translateY(-2px); box-shadow: 0 14px 28px rgba(31, 94, 63, .09); }
+.station-grid .kpi .value { font-size: 32px; }
+
+@media (max-width: 700px) {
+  .city-hero { padding: 22px 20px; }
+  .city-hero { grid-template-columns: 1fr; }
+  .city-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .city-map-head, .city-net-head { padding-left: 16px; padding-right: 16px; }
+  .city-map-foot { padding-left: 16px; padding-right: 16px; }
+}
+
 
 /* ---------------------------------------------------------------- dashboard pass
    The dashboard uses a quieter operational surface: hierarchy comes from spacing,

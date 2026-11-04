@@ -196,6 +196,9 @@ window.NIRI = window.NIRI || {};
         /* the short ward label keeps the map legible; the full name is in the title */
         var labelText = n.type === 'zone' ? n.name.split(' - ')[0]
                       : n.name.replace(/ (Booster|Reservoir|Plant|Intake|Cluster).*/, '');
+        /* Prefer the human-readable served name and keep labels short enough to scan. */
+        labelText = String(labelText || n.id).replace(/\s+/g, ' ').trim();
+        if (labelText.length > 24) labelText = labelText.slice(0, 23) + '…';
         /* the five ward nodes sit close together, so their labels are pushed out in
            five different directions instead of stacking at the same +9/+3 offset */
         var ZONE_LABEL = { zone_1: [-42, 19], zone_2: [12, 19], zone_3: [-40, -11],
