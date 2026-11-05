@@ -571,6 +571,24 @@
   .heat-layer { transition: none; }
 }
 
+/* final polish: let the map breathe and make the air signal easier to scan */
+.city-map-grid { gap: 20px; }
+.city-map-card, .city-side, .city-panel, .city-mini, .city-net { border-radius: 16px; }
+.city-map-head, .city-net-head { padding-left: 22px; padding-right: 22px; }
+.city-map-head h3, .city-net-head h3, .city-panel-head h3, .city-mini h3 { letter-spacing: -.015em; }
+.city-side { background: linear-gradient(180deg, #ffffff 0%, #fbfcfa 100%); }
+.city-side-head { padding-bottom: 8px; border-bottom: 1px solid var(--line, #e7e3d8); }
+.hotspot { padding-top: 13px; padding-bottom: 13px; }
+.city-wqi-row { padding: 6px 0; }
+.city-air-row { padding: 10px 0; }
+.city-air-dot { box-shadow: 0 0 0 4px rgba(107, 143, 113, .10); }
+.map-wrap { border-radius: 16px; }
+.map-caption { max-width: 72ch; line-height: 1.5; }
+@media (max-width: 900px) {
+  .city-map-grid, .city-lower { gap: 14px; }
+  .city-hero { border-radius: 14px; }
+}
+
 /* chrome sits opposite the layer panel so neither lands on the other */
 .map-chrome { left: auto; right: 14px; bottom: 74px; align-items: flex-end; text-align: right; }
 .map-controls { max-height: calc(100% - 120px); overflow: auto; }

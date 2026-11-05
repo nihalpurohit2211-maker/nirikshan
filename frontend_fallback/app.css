@@ -882,3 +882,21 @@ button, .btn, .ghost { border-radius: 10px; }
   .banner { margin-bottom: 14px; }
   .card { padding: 16px; }
 }
+
+/* final polish: consistent product chrome, clearer density, and stronger states */
+#sidebar { box-shadow: 10px 0 30px rgba(31, 94, 63, .035); }
+.brand strong { letter-spacing: -.025em; }
+#nav a { min-height: 42px; }
+#nav a.active { font-weight: 700; }
+#topbar { border-bottom: 1px solid rgba(223, 233, 226, .72); }
+.banner { box-shadow: 0 4px 16px rgba(169, 107, 0, .045); }
+.card { transition: border-color var(--motion), box-shadow var(--motion), transform var(--motion); }
+.card:hover { border-color: #cdded2; box-shadow: 0 12px 28px rgba(31, 94, 63, .07); }
+.kpi .value { font-size: clamp(25px, 2.6vw, 34px); }
+.station-grid { align-items: stretch; }
+.station { display: flex; flex-direction: column; gap: 12px; }
+.station > .row:last-child, .station > button:last-child { margin-top: auto; }
+.station.is-worst { border-color: #e9c7c2; box-shadow: 0 10px 26px rgba(196, 61, 52, .07); }
+@media (max-width: 900px) {
+  #sidebar { box-shadow: 0 4px 16px rgba(31, 94, 63, .045); }
+}
