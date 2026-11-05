@@ -547,7 +547,8 @@ window.NIRI = window.NIRI || {};
                       on: { click: function () { location.hash = '#/map'; } } },
              [preview.element])
         ]);
-        page.appendChild(netCard);
+        /* Keep the distribution tree close to the summary: it is the primary evidence surface. */
+        page.insertBefore(netCard, mapGrid);
 
         function syncSeg() {
           Array.prototype.forEach.call(seg.querySelectorAll('button'), function (b) {

@@ -193,6 +193,14 @@
     }).join(' · ');
   }
 
+  /* Hash routes use slashes, which are not valid CSS selectors for the preview
+     runtime's anchor helper. Push the URL without invoking that helper, then
+     notify the app router explicitly. */
+  NIRI.nav = function (next) {
+    history.pushState(null, '', next);
+    window.dispatchEvent(new Event('hashchange'));
+  };
+
   function boot() {
     api.health().then(paintShell).catch(function (err) {
       document.getElementById('clock').textContent = 'backend not reachable';
@@ -216,7 +224,7 @@
       var raw = location.hash || '#/';
       if (!stored && raw.indexOf('#/welcome') !== 0) {
         if (raw !== '#/' && raw !== '') NIRI.state.nextHash = raw;
-        location.hash = '#/welcome';
+        NIRI.nav('#/welcome');
         return;
       }
       render();
@@ -230,7 +238,7 @@
       var raw = location.hash || '#/';
       if (raw.indexOf('#/welcome') !== 0) NIRI.state.nextHash = raw;
       if (NIRI.role) NIRI.role.clear();
-      location.hash = '#/welcome';
+      NIRI.nav('#/welcome');
     });
   }
 

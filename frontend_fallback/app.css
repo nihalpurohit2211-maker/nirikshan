@@ -4,23 +4,23 @@
    System fonts only, no @import, no CDN, no external assets — works with the network off. */
 
 :root {
-  --forest: #14532d;
-  --forest-hover: #166534;
+  --forest: #1f5e3f;
+  --forest-hover: #174b32;
   --sage: #6b8f71;
-  --page: #f7f5ef;
-  --surface: #fffdf7;
-  --ink: #1c1917;
-  --muted: #6b7280;
-  --line: #e7e3d8;
-  --water: #0e7490;
-  --amber: #b45309;
-  --danger: #b91c1c;
-  --good: #15803d;
-  --acceptable: #a16207;
-  --poor: #c2410c;
-  --unsafe: #b91c1c;
-  --radius: 14px;
-  --shadow: 0 1px 2px rgba(28, 25, 23, .04), 0 12px 28px rgba(28, 25, 23, .06);
+  --page: #f7faf8;
+  --surface: #ffffff;
+  --ink: #1b2b22;
+  --muted: #65736b;
+  --line: #dfe9e2;
+  --water: #19758a;
+  --amber: #a96b00;
+  --danger: #c43d34;
+  --good: #2f9b5c;
+  --acceptable: #9bbd7d;
+  --poor: #c98519;
+  --unsafe: #c43d34;
+  --radius: 12px;
+  --shadow: 0 1px 2px rgba(27, 43, 34, .03), 0 10px 24px rgba(27, 43, 34, .05);
 
   /* derived tints — no new hues, just dilutions of the tokens above */
   --forest-tint: #eaf1ea;
@@ -125,7 +125,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 #main { display: flex; flex-direction: column; min-width: 0; }
 #topbar {
   display: flex; justify-content: space-between; align-items: flex-end; gap: 16px;
-  padding: 24px 24px 14px;
+  padding: 18px 24px 12px;
 }
 .topbar-right { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .reqid { font: var(--fs-xs)/1.4 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; word-break: break-all; }
@@ -846,4 +846,57 @@ button, .btn, .ghost { border-radius: 10px; }
   .map-panel-btn { height: 42px; min-width: 44px; }
   .map-switch { min-height: 44px; }
   .map-caption { font-size: 11px; }
+}
+
+/* v0 redesign pass: quieter chrome, stronger page hierarchy, no floating layer box. */
+#shell { grid-template-columns: 248px minmax(0, 1fr); }
+#sidebar { padding: 24px 18px; background: #f4f7f3; }
+#main { background: #f8faf8; }
+#topbar { padding: 26px 32px 16px; align-items: center; }
+#topbar h2 { font-size: 22px; letter-spacing: -.02em; }
+#topbar .muted { font-size: 12px; }
+.banner { margin: 0 32px 20px; border-left-width: 3px; background: #f5f1e7; }
+.view { padding: 0 32px 16px; }
+#foot { padding-left: 32px; padding-right: 32px; }
+.card { border-color: #d9e4dc; box-shadow: 0 8px 24px rgba(31, 94, 63, .045); }
+.map-panel { display: none; }
+.map-side { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; }
+.map-side > .card:not(.map-panel) { margin-top: 0; }
+.map-canvas-col .map-wrap { border-radius: 16px; box-shadow: 0 12px 30px rgba(31, 94, 63, .08); }
+.map-controls { background: rgba(248, 250, 248, .96); }
+.map-legend { background: rgba(248, 250, 248, .96); }
+
+@media (max-width: 900px) {
+  #shell { grid-template-columns: 1fr; }
+  #sidebar { position: static; height: auto; padding: 14px 18px; gap: 10px; }
+  #nav { flex-direction: row; overflow-x: auto; margin-top: 0; padding-bottom: 2px; }
+  #nav a { white-space: nowrap; }
+  .side-foot { display: none; }
+  #topbar, .view { padding-left: 18px; padding-right: 18px; }
+  .banner { margin-left: 18px; margin-right: 18px; }
+}
+
+@media (max-width: 560px) {
+  #topbar { padding-top: 18px; }
+  #topbar .reqid { display: none; }
+  .banner { margin-bottom: 14px; }
+  .card { padding: 16px; }
+}
+
+/* final polish: consistent product chrome, clearer density, and stronger states */
+#sidebar { box-shadow: 10px 0 30px rgba(31, 94, 63, .035); }
+.brand strong { letter-spacing: -.025em; }
+#nav a { min-height: 42px; }
+#nav a.active { font-weight: 700; }
+#topbar { border-bottom: 1px solid rgba(223, 233, 226, .72); }
+.banner { box-shadow: 0 4px 16px rgba(169, 107, 0, .045); }
+.card { transition: border-color var(--motion), box-shadow var(--motion), transform var(--motion); }
+.card:hover { border-color: #cdded2; box-shadow: 0 12px 28px rgba(31, 94, 63, .07); }
+.kpi .value { font-size: clamp(25px, 2.6vw, 34px); }
+.station-grid { align-items: stretch; }
+.station { display: flex; flex-direction: column; gap: 12px; }
+.station > .row:last-child, .station > button:last-child { margin-top: auto; }
+.station.is-worst { border-color: #e9c7c2; box-shadow: 0 10px 26px rgba(196, 61, 52, .07); }
+@media (max-width: 900px) {
+  #sidebar { box-shadow: 0 4px 16px rgba(31, 94, 63, .045); }
 }
